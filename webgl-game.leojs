@@ -1,0 +1,34 @@
+{
+  "leoHeader": {
+    "fileFormat": 2
+  },
+  "vnodes": [
+    {
+      "gnx": "felix.20240721001224.1",
+      "vh": "WebGL Game",
+      "children": [
+        {
+          "gnx": "felix.20240721001306.1",
+          "vh": "@clean public/index.html"
+        },
+        {
+          "gnx": "felix.20240721001312.1",
+          "vh": "@clean public/style.css"
+        },
+        {
+          "gnx": "felix.20240721001316.1",
+          "vh": "@clean src/main.ts"
+        }
+      ]
+    },
+    {
+      "gnx": "felix.20240929225725.1",
+      "vh": "@auto README.md"
+    }
+  ],
+  "tnodes": {
+    "felix.20240721001306.1": "<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Browser WebGL Game</title>\n    <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n\n<body>\n    <canvas id=\"gameCanvas\" width=\"800\" height=\"600\"></canvas>\n\n</body>\n\n</html>\n",
+    "felix.20240721001312.1": "body,\nhtml {\n  margin: 0;\n  padding: 0;\n  width: 100%;\n  height: 100%;\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  background-color: #000;\n  overflow: hidden;\n}\n\n#gameCanvas {\n  border: 1px solid #000;\n  background-color: #fff;\n  width: 800px;\n  height: 600px;\n  /* width: 100%; */\n  /* height: 100%; */\n  display: block;\n  /* Prevent blurring of scaled canvas */\n  image-rendering: pixelated;\n}\n",
+    "felix.20240721001316.1": "document.addEventListener('DOMContentLoaded', (event) => {\n\n    console.log('Init WebGL2 Game');\n\n    const canvas = document.querySelector('canvas');\n    if (!canvas) {\n        return;\n    }\n    const gl = canvas.getContext('webgl2');\n    if (!gl) {\n        return;\n    }\n    const program = gl.createProgram();\n\n    console.log('Got webgl2 context');\n    // Create program\n    // gl.useProgram(program);\n\n});\n"
+  }
+}
