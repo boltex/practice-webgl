@@ -25,11 +25,11 @@ module.exports = {
     plugins: [
         new HtmlWebpackPlugin({
             template: './public/index.html',
-            favicon: './public/favicon.ico',
         }),
         new CopyWebpackPlugin({
             patterns: [
                 { from: 'public/images', to: 'images' },
+                { from: 'public/favicon.ico', to: '' },
                 { from: 'public/style.css', to: '' },
             ],
         }),
