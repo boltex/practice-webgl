@@ -41,7 +41,25 @@
         },
         {
           "gnx": "felix.20240930203821.1",
-          "vh": "class Sprite"
+          "vh": "class Sprite",
+          "children": [
+            {
+              "gnx": "felix.20240930204115.1",
+              "vh": "constructor"
+            },
+            {
+              "gnx": "felix.20240930221139.1",
+              "vh": "static createRectArray"
+            },
+            {
+              "gnx": "felix.20240930204607.1",
+              "vh": "setup"
+            },
+            {
+              "gnx": "felix.20240930223207.1",
+              "vh": "render"
+            }
+          ]
         }
       ]
     },
@@ -94,14 +112,18 @@
   ],
   "tnodes": {
     "felix.20240930010237.1": "@language typescript\n",
-    "felix.20240930165615.1": "export const SCREEN_WIDTH = 800;\nexport const SCREEN_HEIGHT = 600;\nexport const SPRITE_SIZE = 32;\n\nexport const vertexShaderSource = /*glsl*/ `\n    attribute vec2 a_position;\n    attribute vec2 a_texCoord;\n\n    varying vec2 v_texCoord;\n\n    void main() {\n        gl_Position = vec4(a_position, 1, 1);\n        v_texCoord = a_texCoord;\n    }\n`;\n\nexport const fragmentShaderSource = /*glsl*/ `\n    precision mediump float;\n    uniform sampler2D u_texture;\n    \n    varying vec2 v_texCoord;\n\n    void main(){\n        gl_FragColor = texture2D(u_texture, v_texCoord);\n    }\n`;",
-    "felix.20240930010401.1": "export class Game {\n\n    public canvasElement: HTMLCanvasElement;\n    public gl!: WebGL2RenderingContext;\n\n    @others\n\n}\n",
-    "felix.20240930173811.1": "constructor() {\n    console.log('Init WebGL2 Game !');\n\n    this.canvasElement = document.createElement(\"canvas\");\n    this.canvasElement.width = Constants.SCREEN_WIDTH;\n    this.canvasElement.height = Constants.SCREEN_HEIGHT;\n\n    const testgl = this.canvasElement.getContext('webgl2');\n\n    if (!testgl) {\n        console.error('No webgl2 context');\n        return;\n    } else {\n        this.gl = testgl;\n    }\n\n    document.body.appendChild(this.canvasElement);\n\n    const mat = new Material(this.gl, Constants.vertexShaderSource, Constants.fragmentShaderSource);\n}\n\n",
-    "felix.20240930173750.1": "public update(): void {\n    this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);\n    this.gl.clear(this.gl.COLOR_BUFFER_BIT);\n\n    this.gl.enable(this.gl.BLEND);\n    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);\n\n    this.gl.flush();\n\n}\n",
-    "felix.20240930193901.1": "export class Material {\n\n    public gl!: WebGL2RenderingContext;\n    public program!: WebGLProgram;\n\n    @others\n\n}\n",
+    "felix.20240930165615.1": "export const SCREEN_WIDTH = 800;\nexport const SCREEN_HEIGHT = 600;\nexport const SPRITE_SIZE = 32;\n\nexport const vertexShaderSource = /*glsl*/ `\n    attribute vec2 a_position;\n    attribute vec2 a_texCoord;\n\n    varying vec2 v_texCoord;\n\n    void main() {\n        gl_Position = vec4(a_position, 1, 1);\n        v_texCoord = a_texCoord;\n    }\n`;\n\nexport const fragmentShaderSource = /*glsl*/ `\n    precision mediump float;\n    uniform sampler2D u_texture;\n    \n    varying vec2 v_texCoord;\n\n    void main(){\n        gl_FragColor = texture2D(u_texture, v_texCoord);\n    }\n`;\n\n",
+    "felix.20240930010401.1": "export class Game {\n\n    public canvasElement: HTMLCanvasElement;\n    public gl!: WebGL2RenderingContext;\n    public sprite: Sprite;\n\n    @others\n\n}\n\n",
+    "felix.20240930173811.1": "constructor() {\n    console.log('Init WebGL2 Game !');\n\n    this.canvasElement = document.createElement(\"canvas\");\n    this.canvasElement.width = Constants.SCREEN_WIDTH;\n    this.canvasElement.height = Constants.SCREEN_HEIGHT;\n\n    this.gl = this.canvasElement.getContext('webgl2')!;\n    this.gl.clearColor(0.4, 0.6, 1.0, 0.0);\n\n    document.body.appendChild(this.canvasElement);\n\n    this.sprite = new Sprite(this.gl, \"images/sprite.png\", Constants.vertexShaderSource, Constants.fragmentShaderSource);\n}\n\n",
+    "felix.20240930173750.1": "public update(): void {\n    this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);\n    this.gl.clear(this.gl.COLOR_BUFFER_BIT);\n\n    this.gl.enable(this.gl.BLEND);\n    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);\n\n    this.sprite.render();\n\n    this.gl.flush();\n\n}\n",
+    "felix.20240930193901.1": "export class Material {\n\n    public gl!: WebGL2RenderingContext;\n    public program!: WebGLProgram;\n\n    @others\n\n}\n\n",
     "felix.20240930193936.1": "constructor(gl: WebGL2RenderingContext, vs: string, fs: string) {\n    this.gl = gl;\n\n    const vsShader = this.getShader(vs, gl.VERTEX_SHADER);\n    const fsShader = this.getShader(fs, gl.FRAGMENT_SHADER);\n\n    if (vsShader && fsShader) {\n        this.program = gl.createProgram()!;\n        gl.attachShader(this.program, vsShader);\n        gl.attachShader(this.program, fsShader);\n        gl.linkProgram(this.program);\n        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {\n            console.error(\"Cannot load shader \\n\" + gl.getProgramInfoLog(this.program));\n        }\n\n        gl.detachShader(this.program, vsShader);\n        gl.detachShader(this.program, fsShader);\n        gl.deleteShader(vsShader);\n        gl.deleteShader(fsShader);\n    }\n}\n\n",
     "felix.20240930194442.1": "getShader(script: string, type: number): WebGLShader | null {\n    const gl = this.gl;\n    const output = gl.createShader(type);\n    if (output) {\n        gl.shaderSource(output, script);\n        gl.compileShader(output);\n        if (!gl.getShaderParameter(output, gl.COMPILE_STATUS)) {\n            console.error(\"Shader Error: \\n\" + gl.getShaderInfoLog(output));\n            return null;\n        }\n    }\n    return output;\n}\n\n",
-    "felix.20240930203821.1": "export class Sprite {\n\n    @others\n\n}\n",
+    "felix.20240930203821.1": "export class Sprite {\n\n    public isLoaded = false;\n    public material: Material;\n    public image: HTMLImageElement;\n    public gl!: WebGL2RenderingContext;\n    public gl_tex!: WebGLTexture;\n    public geo_buff!: WebGLBuffer;\n    public tex_buff!: WebGLBuffer;\n\n    public aPositionLoc!: GLint;\n    public aTexCoordLoc!: GLint;\n    public uImageLoc!: WebGLUniformLocation;\n\n    @others\n\n}\n\n",
+    "felix.20240930204115.1": "constructor(gl: WebGL2RenderingContext, imgURL: string, vs: string, fs: string) {\n\n    this.gl = gl;\n    this.isLoaded = false;\n    this.material = new Material(gl, vs, fs);\n\n    this.image = new Image();\n    this.image.src = imgURL;\n    this.image.onload = () => {\n        this.setup();\n    }\n\n}\n\n",
+    "felix.20240930221139.1": "static createRectArray(x = 0, y = 0, w = 1, h = 1) {\n    return new Float32Array([\n        x, y,\n        x + w, y,\n        x, y + h,\n        x, y + h,\n        x + w, y,\n        x + w, y + h,\n    ]);\n}\n\n",
+    "felix.20240930204607.1": "setup() {\n\n    const gl = this.gl;\n\n    gl.useProgram(this.material.program);\n    this.gl_tex = gl.createTexture()!;\n\n    gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);\n\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);\n\n    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.image);\n    gl.bindTexture(gl.TEXTURE_2D, null);\n\n    this.tex_buff = gl.createBuffer()!;\n    gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);\n    gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(), gl.STATIC_DRAW);\n\n    this.geo_buff = gl.createBuffer()!;\n    gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);\n    gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(), gl.STATIC_DRAW);\n\n    this.aPositionLoc = gl.getAttribLocation(this.material.program, \"a_position\");\n    this.aTexCoordLoc = gl.getAttribLocation(this.material.program, \"a_texCoord\");\n    this.uImageLoc = gl.getUniformLocation(this.material.program, \"u_texture\")!;\n\n    gl.useProgram(null);\n    this.isLoaded = true;\n\n}\n\n",
+    "felix.20240930223207.1": "render() {\n    if (this.isLoaded) {\n        const gl = this.gl;\n        gl.useProgram(this.material.program);\n\n        gl.activeTexture(gl.TEXTURE0);\n        gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);\n        gl.uniform1i(this.uImageLoc, 0);\n\n        gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);\n        gl.enableVertexAttribArray(this.aTexCoordLoc);\n        gl.vertexAttribPointer(this.aTexCoordLoc, 2, gl.FLOAT, false, 0, 0);\n\n        gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);\n        gl.enableVertexAttribArray(this.aPositionLoc);\n        gl.vertexAttribPointer(this.aPositionLoc, 2, gl.FLOAT, false, 0, 0);\n\n        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 6);\n\n        gl.useProgram(null);\n\n    }\n}\n\n",
     "felix.20240930165848.1": "import { Game } from './main';\n\nexport { };\n\ndeclare global {\n  interface Window {\n    game: Game;\n  }\n}\n",
     "felix.20240930165631.1": "@others\n",
     "felix.20240721001316.1": "<< imports >>\n@others\n",
