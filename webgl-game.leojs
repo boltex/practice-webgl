@@ -22,6 +22,10 @@
             {
               "gnx": "felix.20240930173750.1",
               "vh": "update"
+            },
+            {
+              "gnx": "felix.20240930235939.1",
+              "vh": "resize"
             }
           ]
         },
@@ -58,6 +62,48 @@
             {
               "gnx": "felix.20240930223207.1",
               "vh": "render"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "gnx": "felix.20240930231508.1",
+      "vh": "Maths",
+      "children": [
+        {
+          "gnx": "felix.20240930231747.1",
+          "vh": "class Point",
+          "children": [
+            {
+              "gnx": "felix.20240930231816.1",
+              "vh": "constructor"
+            }
+          ]
+        },
+        {
+          "gnx": "felix.20240930231857.1",
+          "vh": "class M3x3",
+          "children": [
+            {
+              "gnx": "felix.20240930232333.1",
+              "vh": "constructor"
+            },
+            {
+              "gnx": "felix.20240930232607.1",
+              "vh": "multiply"
+            },
+            {
+              "gnx": "felix.20240930232735.1",
+              "vh": "translation"
+            },
+            {
+              "gnx": "felix.20240930232836.1",
+              "vh": "scale"
+            },
+            {
+              "gnx": "felix.20240930232910.1",
+              "vh": "getFloatArray"
             }
           ]
         }
@@ -102,6 +148,18 @@
               "gnx": "felix.20240930203821.1"
             }
           ]
+        },
+        {
+          "gnx": "felix.20240930231528.1",
+          "vh": "@clean src/maths.ts",
+          "children": [
+            {
+              "gnx": "felix.20240930231747.1"
+            },
+            {
+              "gnx": "felix.20240930231857.1"
+            }
+          ]
         }
       ]
     },
@@ -113,9 +171,10 @@
   "tnodes": {
     "felix.20240930010237.1": "@language typescript\n",
     "felix.20240930165615.1": "export const SCREEN_WIDTH = 800;\nexport const SCREEN_HEIGHT = 600;\nexport const SPRITE_SIZE = 32;\n\nexport const vertexShaderSource = /*glsl*/ `\n    attribute vec2 a_position;\n    attribute vec2 a_texCoord;\n\n    varying vec2 v_texCoord;\n\n    void main() {\n        gl_Position = vec4(a_position, 1, 1);\n        v_texCoord = a_texCoord;\n    }\n`;\n\nexport const fragmentShaderSource = /*glsl*/ `\n    precision mediump float;\n    uniform sampler2D u_texture;\n    \n    varying vec2 v_texCoord;\n\n    void main(){\n        gl_FragColor = texture2D(u_texture, v_texCoord);\n    }\n`;\n\n",
-    "felix.20240930010401.1": "export class Game {\n\n    public canvasElement: HTMLCanvasElement;\n    public gl!: WebGL2RenderingContext;\n    public sprite: Sprite;\n\n    @others\n\n}\n\n",
+    "felix.20240930010401.1": "export class Game {\n\n    public canvasElement: HTMLCanvasElement;\n    public gl!: WebGL2RenderingContext;\n    public sprite: Sprite;\n    private _resizeTimer: ReturnType<typeof setTimeout> | undefined;\n\n    @others\n\n}\n\n",
     "felix.20240930173811.1": "constructor() {\n    console.log('Init WebGL2 Game !');\n\n    this.canvasElement = document.createElement(\"canvas\");\n    this.canvasElement.width = Constants.SCREEN_WIDTH;\n    this.canvasElement.height = Constants.SCREEN_HEIGHT;\n\n    this.gl = this.canvasElement.getContext('webgl2')!;\n    this.gl.clearColor(0.4, 0.6, 1.0, 0.0);\n\n    document.body.appendChild(this.canvasElement);\n\n    this.sprite = new Sprite(this.gl, \"images/sprite.png\", Constants.vertexShaderSource, Constants.fragmentShaderSource);\n}\n\n",
-    "felix.20240930173750.1": "public update(): void {\n    this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);\n    this.gl.clear(this.gl.COLOR_BUFFER_BIT);\n\n    this.gl.enable(this.gl.BLEND);\n    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);\n\n    this.sprite.render();\n\n    this.gl.flush();\n\n}\n",
+    "felix.20240930173750.1": "public update(): void {\n    this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);\n    this.gl.clear(this.gl.COLOR_BUFFER_BIT);\n\n    this.gl.enable(this.gl.BLEND);\n    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);\n\n    this.sprite.render();\n\n    this.gl.flush();\n\n}\n\n",
+    "felix.20240930235939.1": "public resize(w: number, h: number): void {\n    if (this._resizeTimer) {\n        clearTimeout(this._resizeTimer);\n    }\n    this._resizeTimer = setTimeout(() => {\n        console.log('RESIZE', w, h);\n        // \n    }, 100);\n}\n\n",
     "felix.20240930193901.1": "export class Material {\n\n    public gl!: WebGL2RenderingContext;\n    public program!: WebGLProgram;\n\n    @others\n\n}\n\n",
     "felix.20240930193936.1": "constructor(gl: WebGL2RenderingContext, vs: string, fs: string) {\n    this.gl = gl;\n\n    const vsShader = this.getShader(vs, gl.VERTEX_SHADER);\n    const fsShader = this.getShader(fs, gl.FRAGMENT_SHADER);\n\n    if (vsShader && fsShader) {\n        this.program = gl.createProgram()!;\n        gl.attachShader(this.program, vsShader);\n        gl.attachShader(this.program, fsShader);\n        gl.linkProgram(this.program);\n        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {\n            console.error(\"Cannot load shader \\n\" + gl.getProgramInfoLog(this.program));\n        }\n\n        gl.detachShader(this.program, vsShader);\n        gl.detachShader(this.program, fsShader);\n        gl.deleteShader(vsShader);\n        gl.deleteShader(fsShader);\n    }\n}\n\n",
     "felix.20240930194442.1": "getShader(script: string, type: number): WebGLShader | null {\n    const gl = this.gl;\n    const output = gl.createShader(type);\n    if (output) {\n        gl.shaderSource(output, script);\n        gl.compileShader(output);\n        if (!gl.getShaderParameter(output, gl.COMPILE_STATUS)) {\n            console.error(\"Shader Error: \\n\" + gl.getShaderInfoLog(output));\n            return null;\n        }\n    }\n    return output;\n}\n\n",
@@ -124,10 +183,20 @@
     "felix.20240930221139.1": "static createRectArray(x = 0, y = 0, w = 1, h = 1) {\n    return new Float32Array([\n        x, y,\n        x + w, y,\n        x, y + h,\n        x, y + h,\n        x + w, y,\n        x + w, y + h,\n    ]);\n}\n\n",
     "felix.20240930204607.1": "setup() {\n\n    const gl = this.gl;\n\n    gl.useProgram(this.material.program);\n    this.gl_tex = gl.createTexture()!;\n\n    gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);\n\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);\n    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);\n\n    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.image);\n    gl.bindTexture(gl.TEXTURE_2D, null);\n\n    this.tex_buff = gl.createBuffer()!;\n    gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);\n    gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(), gl.STATIC_DRAW);\n\n    this.geo_buff = gl.createBuffer()!;\n    gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);\n    gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(), gl.STATIC_DRAW);\n\n    this.aPositionLoc = gl.getAttribLocation(this.material.program, \"a_position\");\n    this.aTexCoordLoc = gl.getAttribLocation(this.material.program, \"a_texCoord\");\n    this.uImageLoc = gl.getUniformLocation(this.material.program, \"u_texture\")!;\n\n    gl.useProgram(null);\n    this.isLoaded = true;\n\n}\n\n",
     "felix.20240930223207.1": "render() {\n    if (this.isLoaded) {\n        const gl = this.gl;\n        gl.useProgram(this.material.program);\n\n        gl.activeTexture(gl.TEXTURE0);\n        gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);\n        gl.uniform1i(this.uImageLoc, 0);\n\n        gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);\n        gl.enableVertexAttribArray(this.aTexCoordLoc);\n        gl.vertexAttribPointer(this.aTexCoordLoc, 2, gl.FLOAT, false, 0, 0);\n\n        gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);\n        gl.enableVertexAttribArray(this.aPositionLoc);\n        gl.vertexAttribPointer(this.aPositionLoc, 2, gl.FLOAT, false, 0, 0);\n\n        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 6);\n\n        gl.useProgram(null);\n\n    }\n}\n\n",
+    "felix.20240930231508.1": "@language typescript\n",
+    "felix.20240930231747.1": "export class Point {\n\n    public x: number;\n    public y: number;\n\n    @others\n}\n",
+    "felix.20240930231816.1": "constructor(x = 0.0, y = 0.0) {\n    this.x = x;\n    this.y = y;\n}\n\n",
+    "felix.20240930231857.1": "export class M3x3 {\n\n    public static M00 = 0;\n    public static M01 = 1;\n    public static M02 = 2;\n    public static M10 = 3;\n    public static M11 = 4;\n    public static M12 = 5;\n    public static M20 = 6;\n    public static M21 = 7;\n    public static M22 = 8;\n\n    public matrix: [\n        number, number, number,\n        number, number, number,\n        number, number, number,\n    ];\n\n    @others\n\n}\n\n",
+    "felix.20240930232333.1": "constructor() {\n    this.matrix = [\n        1, 0, 0,\n        0, 1, 0,\n        0, 0, 1\n    ];\n}\n\n",
+    "felix.20240930232607.1": "multiply(m: M3x3): M3x3 {\n    const output = new M3x3();\n    output.matrix = [\n        this.matrix[M3x3.M00] * m.matrix[M3x3.M00] + this.matrix[M3x3.M10] * m.matrix[M3x3.M01] + this.matrix[M3x3.M20] * m.matrix[M3x3.M02],\n        this.matrix[M3x3.M01] * m.matrix[M3x3.M00] + this.matrix[M3x3.M11] * m.matrix[M3x3.M01] + this.matrix[M3x3.M21] * m.matrix[M3x3.M02],\n        this.matrix[M3x3.M02] * m.matrix[M3x3.M00] + this.matrix[M3x3.M12] * m.matrix[M3x3.M01] + this.matrix[M3x3.M22] * m.matrix[M3x3.M02],\n\n        this.matrix[M3x3.M00] * m.matrix[M3x3.M10] + this.matrix[M3x3.M10] * m.matrix[M3x3.M11] + this.matrix[M3x3.M20] * m.matrix[M3x3.M12],\n        this.matrix[M3x3.M01] * m.matrix[M3x3.M10] + this.matrix[M3x3.M11] * m.matrix[M3x3.M11] + this.matrix[M3x3.M21] * m.matrix[M3x3.M12],\n        this.matrix[M3x3.M02] * m.matrix[M3x3.M10] + this.matrix[M3x3.M12] * m.matrix[M3x3.M11] + this.matrix[M3x3.M22] * m.matrix[M3x3.M12],\n\n        this.matrix[M3x3.M00] * m.matrix[M3x3.M20] + this.matrix[M3x3.M10] * m.matrix[M3x3.M21] + this.matrix[M3x3.M20] * m.matrix[M3x3.M22],\n        this.matrix[M3x3.M01] * m.matrix[M3x3.M20] + this.matrix[M3x3.M11] * m.matrix[M3x3.M21] + this.matrix[M3x3.M21] * m.matrix[M3x3.M22],\n        this.matrix[M3x3.M02] * m.matrix[M3x3.M20] + this.matrix[M3x3.M12] * m.matrix[M3x3.M21] + this.matrix[M3x3.M22] * m.matrix[M3x3.M22]\n    ];\n    return output;\n}\n\n",
+    "felix.20240930232735.1": "translation(x: number, y: number): M3x3 {\n    const output = new M3x3();\n    output.matrix = [\n        this.matrix[M3x3.M00],\n        this.matrix[M3x3.M01],\n        this.matrix[M3x3.M02],\n\n",
+    "felix.20240930232836.1": "        this.matrix[M3x3.M10],\n        this.matrix[M3x3.M11],\n        this.matrix[M3x3.M12],\n\n        x * this.matrix[M3x3.M00] + y * this.matrix[M3x3.M10] + this.matrix[M3x3.M20],\n        x * this.matrix[M3x3.M01] + y * this.matrix[M3x3.M11] + this.matrix[M3x3.M21],\n        x * this.matrix[M3x3.M02] + y * this.matrix[M3x3.M12] + this.matrix[M3x3.M22]\n    ];\n    return output;\n}\n\nscale(x: number, y: number): M3x3 {\n    const output = new M3x3();\n    output.matrix = [\n        this.matrix[M3x3.M00] * x,\n        this.matrix[M3x3.M01] * x,\n        this.matrix[M3x3.M02] * x,\n\n        this.matrix[M3x3.M10] * y,\n        this.matrix[M3x3.M11] * y,\n        this.matrix[M3x3.M12] * y,\n\n        this.matrix[M3x3.M20],\n        this.matrix[M3x3.M21],\n        this.matrix[M3x3.M22]\n    ];\n    return output;\n}\n\n",
+    "felix.20240930232910.1": "getFloatArray(): Float32Array {\n    return new Float32Array(this.matrix);\n}\n\n",
     "felix.20240930165848.1": "import { Game } from './main';\n\nexport { };\n\ndeclare global {\n  interface Window {\n    game: Game;\n  }\n}\n",
     "felix.20240930165631.1": "@others\n",
     "felix.20240721001316.1": "<< imports >>\n@others\n",
-    "felix.20240930170311.1": "import * as Constants from \"./constants\";\n\n",
-    "felix.20240930143411.1": "document.addEventListener('DOMContentLoaded', (event) => {\n    if (!window.game) {\n        window.game = new Game();\n        loop();\n    } else {\n        console.log('Game instance already started');\n    }\n});\n\nfunction loop(): void {\n    window.game.update();\n    requestAnimationFrame(loop);\n}\n\n"
+    "felix.20240930170311.1": "import * as Constants from \"./constants\";\nimport { Point, M3x3 } from \"./maths\";\n\n",
+    "felix.20240930143411.1": "document.addEventListener('DOMContentLoaded', (event) => {\n    if (!window.game) {\n        window.game = new Game();\n        window.game.resize(\n            window.innerWidth,\n            window.innerHeight\n        );\n        loop();\n    } else {\n        console.log('Game instance already started');\n    }\n});\nwindow.addEventListener('resize', (event) => {\n    if (window.game) {\n        window.game.resize(\n            window.innerWidth,\n            window.innerHeight\n        );\n    }\n});\n\nfunction loop(): void {\n    window.game.update();\n    requestAnimationFrame(loop);\n}\n\n",
+    "felix.20240930231528.1": "@others\n"
   }
 }

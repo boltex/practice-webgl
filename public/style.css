@@ -14,11 +14,11 @@ html {
 canvas {
   /* border: 1px solid #000; */
   background-color: #000;
-  width: 800px;
-  height: 600px;
+  /* width: 800px; */
+  /* height: 600px; */
   /* width: 100%; */
   /* height: 100%; */
-  display: block;
+  /* display: block; */
   /* Prevent blurring of scaled canvas */
-  image-rendering: pixelated;
+  /* image-rendering: pixelated; */
 }

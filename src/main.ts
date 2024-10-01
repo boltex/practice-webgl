@@ -1,11 +1,24 @@
 import * as Constants from "./constants";
+import { Point, M3x3 } from "./maths";
 
 document.addEventListener('DOMContentLoaded', (event) => {
     if (!window.game) {
         window.game = new Game();
+        window.game.resize(
+            window.innerWidth,
+            window.innerHeight
+        );
         loop();
     } else {
         console.log('Game instance already started');
+    }
+});
+window.addEventListener('resize', (event) => {
+    if (window.game) {
+        window.game.resize(
+            window.innerWidth,
+            window.innerHeight
+        );
     }
 });
 
@@ -19,6 +32,9 @@ export class Game {
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
     public sprite: Sprite;
+    public worldSpaceMatrix: M3x3;
+
+    private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
     constructor() {
         console.log('Init WebGL2 Game !');
@@ -26,6 +42,8 @@ export class Game {
         this.canvasElement = document.createElement("canvas");
         this.canvasElement.width = Constants.SCREEN_WIDTH;
         this.canvasElement.height = Constants.SCREEN_HEIGHT;
+
+        this.worldSpaceMatrix = new M3x3();
 
         this.gl = this.canvasElement.getContext('webgl2')!;
         this.gl.clearColor(0.4, 0.6, 1.0, 0.0);
@@ -36,7 +54,9 @@ export class Game {
     }
 
     public update(): void {
-        this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+        // this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
+        this.gl.viewport(0, 0, this.canvasElement.width, this.canvasElement.height);
+
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
         this.gl.enable(this.gl.BLEND);
@@ -47,6 +67,23 @@ export class Game {
         this.gl.flush();
 
     }
+
+    public resize(w: number, h: number): void {
+        if (this._resizeTimer) {
+            clearTimeout(this._resizeTimer);
+        }
+        this._resizeTimer = setTimeout(() => {
+            this.canvasElement.width = w;
+            this.canvasElement.height = h;
+
+            const wRatio = w / (h / 240);
+            this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / 240);
+            // this.worldSpaceMatrix = new M3x3().translation(-1.0, 1.0).scale(2 / wRatio, -2 / 240);
+            console.log('RESIZE', w, h);
+            // 
+        }, 100);
+    }
+
 
 }
 
@@ -103,16 +140,26 @@ export class Sprite {
     public gl_tex!: WebGLTexture;
     public geo_buff!: WebGLBuffer;
     public tex_buff!: WebGLBuffer;
+    public size: Point;
 
     public aPositionLoc!: GLint;
     public aTexCoordLoc!: GLint;
     public uImageLoc!: WebGLUniformLocation;
+    public uWorldLoc!: WebGLUniformLocation;
 
-    constructor(gl: WebGL2RenderingContext, imgURL: string, vs: string, fs: string) {
+    constructor(gl: WebGL2RenderingContext, imgURL: string, vs: string, fs: string, options: Record<string, any> = {}) {
 
         this.gl = gl;
         this.isLoaded = false;
         this.material = new Material(gl, vs, fs);
+
+        this.size = new Point(64, 64);
+        if ("width" in options) {
+            this.size.x = options["width"] * 1;
+        }
+        if ("height" in options) {
+            this.size.y = options["height"] * 1;
+        }
 
         this.image = new Image();
         this.image.src = imgURL;
@@ -156,11 +203,13 @@ export class Sprite {
 
         this.geo_buff = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
-        gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(0, 0, this.size.x, this.size.y), gl.STATIC_DRAW);
 
         this.aPositionLoc = gl.getAttribLocation(this.material.program, "a_position");
         this.aTexCoordLoc = gl.getAttribLocation(this.material.program, "a_texCoord");
         this.uImageLoc = gl.getUniformLocation(this.material.program, "u_texture")!;
+
+        this.uWorldLoc = gl.getUniformLocation(this.material.program, "u_world")!;
 
         gl.useProgram(null);
         this.isLoaded = true;
@@ -183,6 +232,8 @@ export class Sprite {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
             gl.enableVertexAttribArray(this.aPositionLoc);
             gl.vertexAttribPointer(this.aPositionLoc, 2, gl.FLOAT, false, 0, 0);
+
+            gl.uniformMatrix3fv(this.uWorldLoc, false, window.game.worldSpaceMatrix.getFloatArray());
 
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 6);
 
