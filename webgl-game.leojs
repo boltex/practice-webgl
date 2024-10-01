@@ -4,20 +4,86 @@
   },
   "vnodes": [
     {
-      "gnx": "felix.20240721001224.1",
+      "gnx": "felix.20240930010237.1",
       "vh": "WebGL Game",
       "children": [
         {
-          "gnx": "felix.20240721001306.1",
-          "vh": "@clean public/index.html"
+          "gnx": "felix.20240930165615.1",
+          "vh": "Constants"
         },
         {
-          "gnx": "felix.20240721001312.1",
-          "vh": "@clean public/style.css"
+          "gnx": "felix.20240930010401.1",
+          "vh": "class Game",
+          "children": [
+            {
+              "gnx": "felix.20240930173811.1",
+              "vh": "constructor"
+            },
+            {
+              "gnx": "felix.20240930173750.1",
+              "vh": "update"
+            }
+          ]
+        },
+        {
+          "gnx": "felix.20240930193901.1",
+          "vh": "class Material",
+          "children": [
+            {
+              "gnx": "felix.20240930193936.1",
+              "vh": "constructor"
+            },
+            {
+              "gnx": "felix.20240930194442.1",
+              "vh": "getShader"
+            }
+          ]
+        },
+        {
+          "gnx": "felix.20240930203821.1",
+          "vh": "class Sprite"
+        }
+      ]
+    },
+    {
+      "gnx": "felix.20240721001224.1",
+      "vh": "External Files",
+      "children": [
+        {
+          "gnx": "felix.20240930165848.1",
+          "vh": "@clean src/globals.d.ts"
+        },
+        {
+          "gnx": "felix.20240930165631.1",
+          "vh": "@clean src/constants.ts",
+          "children": [
+            {
+              "gnx": "felix.20240930165615.1"
+            }
+          ]
         },
         {
           "gnx": "felix.20240721001316.1",
-          "vh": "@clean src/main.ts"
+          "vh": "@clean src/main.ts",
+          "children": [
+            {
+              "gnx": "felix.20240930170311.1",
+              "vh": "<< imports >>"
+            },
+            {
+              "gnx": "felix.20240930143411.1",
+              "vh": "Startup"
+            },
+            {
+              "gnx": "felix.20240930010401.1"
+            },
+            {
+              "gnx": "felix.20240930193901.1"
+            },
+            {
+              "gnx": "felix.20240930203821.1"
+            }
+          ]
         }
       ]
     },
@@ -27,8 +93,19 @@
     }
   ],
   "tnodes": {
-    "felix.20240721001306.1": "<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Browser WebGL Game</title>\n    <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n\n<body>\n    <canvas id=\"gameCanvas\" width=\"800\" height=\"600\"></canvas>\n\n</body>\n\n</html>\n",
-    "felix.20240721001312.1": "body,\nhtml {\n  margin: 0;\n  padding: 0;\n  width: 100%;\n  height: 100%;\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  background-color: #000;\n  overflow: hidden;\n}\n\n#gameCanvas {\n  border: 1px solid #000;\n  background-color: #fff;\n  width: 800px;\n  height: 600px;\n  /* width: 100%; */\n  /* height: 100%; */\n  display: block;\n  /* Prevent blurring of scaled canvas */\n  image-rendering: pixelated;\n}\n",
-    "felix.20240721001316.1": "document.addEventListener('DOMContentLoaded', (event) => {\n\n    console.log('Init WebGL2 Game');\n\n    const canvas = document.querySelector('canvas');\n    if (!canvas) {\n        return;\n    }\n    const gl = canvas.getContext('webgl2');\n    if (!gl) {\n        return;\n    }\n    const program = gl.createProgram();\n\n    console.log('Got webgl2 context');\n    // Create program\n    // gl.useProgram(program);\n\n});\n"
+    "felix.20240930010237.1": "@language typescript\n",
+    "felix.20240930165615.1": "export const SCREEN_WIDTH = 800;\nexport const SCREEN_HEIGHT = 600;\nexport const SPRITE_SIZE = 32;\n\nexport const vertexShaderSource = /*glsl*/ `\n    attribute vec2 a_position;\n    attribute vec2 a_texCoord;\n\n    varying vec2 v_texCoord;\n\n    void main() {\n        gl_Position = vec4(a_position, 1, 1);\n        v_texCoord = a_texCoord;\n    }\n`;\n\nexport const fragmentShaderSource = /*glsl*/ `\n    precision mediump float;\n    uniform sampler2D u_texture;\n    \n    varying vec2 v_texCoord;\n\n    void main(){\n        gl_FragColor = texture2D(u_texture, v_texCoord);\n    }\n`;",
+    "felix.20240930010401.1": "export class Game {\n\n    public canvasElement: HTMLCanvasElement;\n    public gl!: WebGL2RenderingContext;\n\n    @others\n\n}\n",
+    "felix.20240930173811.1": "constructor() {\n    console.log('Init WebGL2 Game !');\n\n    this.canvasElement = document.createElement(\"canvas\");\n    this.canvasElement.width = Constants.SCREEN_WIDTH;\n    this.canvasElement.height = Constants.SCREEN_HEIGHT;\n\n    const testgl = this.canvasElement.getContext('webgl2');\n\n    if (!testgl) {\n        console.error('No webgl2 context');\n        return;\n    } else {\n        this.gl = testgl;\n    }\n\n    document.body.appendChild(this.canvasElement);\n\n    const mat = new Material(this.gl, Constants.vertexShaderSource, Constants.fragmentShaderSource);\n}\n\n",
+    "felix.20240930173750.1": "public update(): void {\n    this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);\n    this.gl.clear(this.gl.COLOR_BUFFER_BIT);\n\n    this.gl.enable(this.gl.BLEND);\n    this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);\n\n    this.gl.flush();\n\n}\n",
+    "felix.20240930193901.1": "export class Material {\n\n    public gl!: WebGL2RenderingContext;\n    public program!: WebGLProgram;\n\n    @others\n\n}\n",
+    "felix.20240930193936.1": "constructor(gl: WebGL2RenderingContext, vs: string, fs: string) {\n    this.gl = gl;\n\n    const vsShader = this.getShader(vs, gl.VERTEX_SHADER);\n    const fsShader = this.getShader(fs, gl.FRAGMENT_SHADER);\n\n    if (vsShader && fsShader) {\n        this.program = gl.createProgram()!;\n        gl.attachShader(this.program, vsShader);\n        gl.attachShader(this.program, fsShader);\n        gl.linkProgram(this.program);\n        if (!gl.getProgramParameter(this.program, gl.LINK_STATUS)) {\n            console.error(\"Cannot load shader \\n\" + gl.getProgramInfoLog(this.program));\n        }\n\n        gl.detachShader(this.program, vsShader);\n        gl.detachShader(this.program, fsShader);\n        gl.deleteShader(vsShader);\n        gl.deleteShader(fsShader);\n    }\n}\n\n",
+    "felix.20240930194442.1": "getShader(script: string, type: number): WebGLShader | null {\n    const gl = this.gl;\n    const output = gl.createShader(type);\n    if (output) {\n        gl.shaderSource(output, script);\n        gl.compileShader(output);\n        if (!gl.getShaderParameter(output, gl.COMPILE_STATUS)) {\n            console.error(\"Shader Error: \\n\" + gl.getShaderInfoLog(output));\n            return null;\n        }\n    }\n    return output;\n}\n\n",
+    "felix.20240930203821.1": "export class Sprite {\n\n    @others\n\n}\n",
+    "felix.20240930165848.1": "import { Game } from './main';\n\nexport { };\n\ndeclare global {\n  interface Window {\n    game: Game;\n  }\n}\n",
+    "felix.20240930165631.1": "@others\n",
+    "felix.20240721001316.1": "<< imports >>\n@others\n",
+    "felix.20240930170311.1": "import * as Constants from \"./constants\";\n\n",
+    "felix.20240930143411.1": "document.addEventListener('DOMContentLoaded', (event) => {\n    if (!window.game) {\n        window.game = new Game();\n        loop();\n    } else {\n        console.log('Game instance already started');\n    }\n});\n\nfunction loop(): void {\n    window.game.update();\n    requestAnimationFrame(loop);\n}\n\n"
   }
 }
