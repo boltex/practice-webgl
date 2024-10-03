@@ -32,7 +32,13 @@ export class Game {
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
     public sprite1: Sprite;
+    public sprite1Pos: Point;
+    public sprite1Frame: Point;
+
     // public sprite2: Sprite;
+    // public sprite2Pos: Point;
+    // public sprite2Frame: Point;
+
     public worldSpaceMatrix: M3x3;
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
@@ -61,19 +67,26 @@ export class Game {
                 height: 64,
             }
         );
+        this.sprite1Pos = new Point();
+        this.sprite1Frame = new Point();
+
         // this.sprite2 = new Sprite(this.gl, "images/sprite.png", Constants.vertexShaderSource, Constants.fragmentShaderSource);
     }
 
     public update(): void {
         // this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
         this.gl.viewport(0, 0, this.canvasElement.width, this.canvasElement.height);
-
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
         this.gl.enable(this.gl.BLEND);
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
-        this.sprite1.render();
+        // Set Sprite frame
+        this.sprite1Frame.x = new Date().getTime() * 0.006 % 5;
+        // Set Sprite Position 
+        this.sprite1Pos.x = (this.sprite1Pos.x + 1.1) % 256
+
+        this.sprite1.render(this.sprite1Pos, this.sprite1Frame);
         // this.sprite2.render();
 
         this.gl.flush();
@@ -100,6 +113,7 @@ export class Material {
 
     public gl!: WebGL2RenderingContext;
     public program!: WebGLProgram;
+    public parameters: Record<string, any> = {};
 
     constructor(gl: WebGL2RenderingContext, vs: string, fs: string) {
         this.gl = gl;
@@ -116,10 +130,14 @@ export class Material {
                 console.error("Cannot load shader \n" + gl.getProgramInfoLog(this.program));
             }
 
+            this.gatherParameters();
+
             gl.detachShader(this.program, vsShader);
             gl.detachShader(this.program, fsShader);
             gl.deleteShader(vsShader);
             gl.deleteShader(fsShader);
+
+            gl.useProgram(null);
         }
     }
 
@@ -137,6 +155,80 @@ export class Material {
         return output;
     }
 
+    gatherParameters(): void {
+
+        const gl = this.gl;
+        let isUniform = 0;
+
+        this.parameters = {};
+
+        while (isUniform < 2) {
+            let paramType = isUniform ? gl.ACTIVE_UNIFORMS : gl.ACTIVE_ATTRIBUTES;
+            let count = gl.getProgramParameter(this.program, paramType);
+
+            for (let i = 0; i < count; i++) {
+                let details;
+                let location;
+                if (isUniform) {
+                    details = gl.getActiveUniform(this.program, i);
+                    location = gl.getUniformLocation(this.program, details!.name);
+                } else {
+                    details = gl.getActiveAttrib(this.program, i);
+                    location = gl.getAttribLocation(this.program, details!.name);
+                }
+                this.parameters[details!.name] = {
+                    loaction: location,
+                    uniform: !!isUniform,
+                    type: details!.type
+                }
+            }
+            isUniform++;
+
+        }
+
+    }
+
+    setParam(w_name: string, a?: any, b?: any, c?: any, d?: any, e?: any) {
+        const gl = this.gl;
+
+        if (w_name in this.parameters) {
+            const param = this.parameters[w_name];
+            if (param.uniform) {
+                switch (param.type) {
+                    case gl.FLOAT: gl.uniform1f(param.location, a); break;
+                    case gl.FLOAT_VEC2: gl.uniform2f(param.location, a, b); break;
+                    case gl.FLOAT_VEC3: gl.uniform3f(param.location, a, b, c); break;
+                    case gl.FLOAT_VEC4: gl.uniform4f(param.location, a, b, c, d); break;
+                    case gl.FLOAT_MAT3: gl.uniformMatrix3fv(param.location, false, a); break;
+                    case gl.FLOAT_MAT4: gl.uniformMatrix4fv(param.location, false, a); break;
+                    case gl.SAMPLER_2D: gl.uniform1i(param.location, a); break;
+                }
+            } else {
+                gl.enableVertexAttribArray(param.location);
+                if (a == undefined) {
+                    a = gl.FLOAT;
+                }
+                if (b == undefined) {
+                    b = false;
+                }
+                if (c == undefined) {
+                    c = 0;
+                }
+                if (d == undefined) {
+                    d = 0;
+                }
+
+                switch (param.type) {
+                    case gl.FLOAT: gl.vertexAttribPointer(param.location, 1, a, b, c, d); break;
+                    case gl.FLOAT_VEC2: gl.vertexAttribPointer(param.location, 2, a, b, c, d); break;
+                    case gl.FLOAT_VEC3: gl.vertexAttribPointer(param.location, 3, a, b, c, d); break;
+                    case gl.FLOAT_VEC4: gl.vertexAttribPointer(param.location, 4, a, b, c, d); break;
+                }
+            }
+        }
+
+    }
+
 
 }
 
@@ -150,11 +242,14 @@ export class Sprite {
     public geo_buff!: WebGLBuffer;
     public tex_buff!: WebGLBuffer;
     public size: Point;
+    public uv_x = 0;
+    public uv_y = 0;
 
     public aPositionLoc!: GLint;
     public aTexCoordLoc!: GLint;
     public uImageLoc!: WebGLUniformLocation;
     public uWorldLoc!: WebGLUniformLocation;
+    public uObjectLoc!: WebGLUniformLocation;
     public uFrameLoc!: WebGLUniformLocation;
 
     constructor(
@@ -212,48 +307,47 @@ export class Sprite {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.image);
         gl.bindTexture(gl.TEXTURE_2D, null);
 
-        let uv_x = this.size.x / this.image.width;
-        let uv_y = this.size.y / this.image.height;
+        this.uv_x = this.size.x / this.image.width;
+        this.uv_y = this.size.y / this.image.height;
 
         this.tex_buff = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);
-        gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(0, 0, uv_x, uv_y), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(0, 0, this.uv_x, this.uv_y), gl.STATIC_DRAW);
 
         this.geo_buff = gl.createBuffer()!;
         gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
         gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(0, 0, this.size.x, this.size.y), gl.STATIC_DRAW);
-
-        this.aPositionLoc = gl.getAttribLocation(this.material.program, "a_position");
-        this.aTexCoordLoc = gl.getAttribLocation(this.material.program, "a_texCoord");
-        this.uImageLoc = gl.getUniformLocation(this.material.program, "u_texture")!;
-
-        this.uFrameLoc = gl.getUniformLocation(this.material.program, "u_frame")!;
-        this.uWorldLoc = gl.getUniformLocation(this.material.program, "u_world")!;
 
         gl.useProgram(null);
         this.isLoaded = true;
 
     }
 
-    render() {
+    render(position: Point, frames: Point) {
         if (this.isLoaded) {
             const gl = this.gl;
+
+            const frame_x = Math.floor(frames.x) * this.uv_x;
+            const frame_y = Math.floor(frames.y) * this.uv_y;
+
+            const oMat = new M3x3().translation(position.x, position.y);
+
             gl.useProgram(this.material.program);
 
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);
-            gl.uniform1i(this.uImageLoc, 0);
+            this.material.setParam("u_texture", 0);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);
-            gl.enableVertexAttribArray(this.aTexCoordLoc);
-            gl.vertexAttribPointer(this.aTexCoordLoc, 2, gl.FLOAT, false, 0, 0);
+            this.material.setParam("a_texCoord");
+
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
-            gl.enableVertexAttribArray(this.aPositionLoc);
-            gl.vertexAttribPointer(this.aPositionLoc, 2, gl.FLOAT, false, 0, 0);
+            this.material.setParam("a_position");
 
-            // gl.uniform2f(this.uFrameLoc, frame_x, frame_y);
-            gl.uniformMatrix3fv(this.uWorldLoc, false, window.game.worldSpaceMatrix.getFloatArray());
+            this.material.setParam("u_frame", frame_x, frame_y);
+            this.material.setParam("u_world", window.game.worldSpaceMatrix.getFloatArray());
+            this.material.setParam("u_object", oMat.getFloatArray());
 
             gl.drawArrays(gl.TRIANGLE_STRIP, 0, 6);
 
