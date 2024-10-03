@@ -1,6 +1,7 @@
 export const SCREEN_WIDTH = 800;
 export const SCREEN_HEIGHT = 600;
 export const SPRITE_SIZE = 32;
+export const GAME_HEIGHT = 240;
 
 export const vertexShaderSource = /*glsl*/ `
     attribute vec2 a_position;
@@ -11,7 +12,6 @@ export const vertexShaderSource = /*glsl*/ `
     uniform vec2 u_frame;
 
     varying vec2 v_texCoord;
-
     void main() {
         gl_Position = vec4(u_world * u_object * vec3(a_position, 1), 1);
         v_texCoord = a_texCoord + u_frame;
@@ -20,12 +20,11 @@ export const vertexShaderSource = /*glsl*/ `
 
 export const fragmentShaderSource = /*glsl*/ `
     precision mediump float;
-    uniform sampler2D u_texture;
-    
+    uniform sampler2D u_image;
     varying vec2 v_texCoord;
 
     void main(){
-        gl_FragColor = texture2D(u_texture, v_texCoord);
+        gl_FragColor = texture2D(u_image, v_texCoord);
     }
 `;
 

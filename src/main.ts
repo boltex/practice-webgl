@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         window.game = new Game();
         window.game.resize(
             window.innerWidth,
-            window.innerHeight
+            window.innerHeight,
+            true // First resize not debounced.
         );
         loop();
     } else {
@@ -74,46 +75,59 @@ export class Game {
     }
 
     public update(): void {
-        // this.gl.viewport(0, 0, Constants.SCREEN_WIDTH, Constants.SCREEN_HEIGHT);
         this.gl.viewport(0, 0, this.canvasElement.width, this.canvasElement.height);
         this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
         this.gl.enable(this.gl.BLEND);
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
-        // Set Sprite frame
-        this.sprite1Frame.x = new Date().getTime() * 0.006 % 5;
-        // Set Sprite Position 
-        this.sprite1Pos.x = (this.sprite1Pos.x + 1.1) % 256
+        this.sprite1Frame.x = (new Date().getTime() * 0.006) % 3;
+        this.sprite1Frame.y = (new Date().getTime() * 0.002) % 2;
+        this.sprite1Pos.x = (this.sprite1Pos.x + 1.1) % 256;
+
+        // this.sprite2Frame.x = (new Date() * 0.006) % 3;
+        // this.sprite2Frame.y = (new Date() * 0.002) % 2;
+        // this.sprite2Pos.x = (this.sprite2Pos.x + 1.1) % 256;
 
         this.sprite1.render(this.sprite1Pos, this.sprite1Frame);
-        // this.sprite2.render();
+        // this.sprite2.render(this.sprite2Pos, this.sprite2Frame);
 
         this.gl.flush();
 
     }
 
-    public resize(w: number, h: number): void {
+    public resize(w: number, h: number, noDebounce?: boolean): void {
+        if (noDebounce) {
+            this.canvasElement.width = w;
+            this.canvasElement.height = h;
+            const wRatio = w / (h / Constants.GAME_HEIGHT);
+            this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
+            return
+        }
+        // ELSE : debounded resize
         if (this._resizeTimer) {
             clearTimeout(this._resizeTimer);
         }
         this._resizeTimer = setTimeout(() => {
             this.canvasElement.width = w;
             this.canvasElement.height = h;
-
-            const wRatio = w / (h / 240);
-            this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / 240);
+            const wRatio = w / (h / Constants.GAME_HEIGHT);
+            this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
         }, 100);
     }
 
 
 }
 
+type TParameters =
+    | { uniform: true; location: WebGLUniformLocation | null; type: number }
+    | { uniform: false; location: number; type: number };
+
 export class Material {
 
     public gl!: WebGL2RenderingContext;
     public program!: WebGLProgram;
-    public parameters: Record<string, any> = {};
+    public parameters: Record<string, TParameters> = {};
 
     constructor(gl: WebGL2RenderingContext, vs: string, fs: string) {
         this.gl = gl;
@@ -161,7 +175,6 @@ export class Material {
         let isUniform = 0;
 
         this.parameters = {};
-
         while (isUniform < 2) {
             let paramType = isUniform ? gl.ACTIVE_UNIFORMS : gl.ACTIVE_ATTRIBUTES;
             let count = gl.getProgramParameter(this.program, paramType);
@@ -176,14 +189,15 @@ export class Material {
                     details = gl.getActiveAttrib(this.program, i);
                     location = gl.getAttribLocation(this.program, details!.name);
                 }
+
+                // @ts-expect-error
                 this.parameters[details!.name] = {
-                    loaction: location,
+                    location: location,
                     uniform: !!isUniform,
                     type: details!.type
                 }
             }
             isUniform++;
-
         }
 
     }
@@ -336,7 +350,7 @@ export class Sprite {
 
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);
-            this.material.setParam("u_texture", 0);
+            this.material.setParam("u_image", 0);
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);
             this.material.setParam("a_texCoord");
