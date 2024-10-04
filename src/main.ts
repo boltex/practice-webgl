@@ -28,6 +28,24 @@ function loop(): void {
     requestAnimationFrame(loop);
 }
 
+type Renderable = {
+    sprite: string;
+    position: Point;
+    frame: Point;
+    flip: boolean;
+    blendmode: number;
+    options: Record<string, any>;
+};
+
+type RenderableLayer = {
+    blendmode: number;
+    objs: Renderable[];
+};
+
+type RenderableLayers = {
+    layers: RenderableLayer[];
+};
+
 export class Game {
 
     public canvasElement: HTMLCanvasElement;
@@ -35,14 +53,10 @@ export class Game {
     public finalBuffer: BackBuffer;
     public backBuffer: BackBuffer;
     public sprites: Record<string, Sprite>;
-    public renderables: any;
+    public renderables!: RenderableLayers;
 
     public sprite1Pos: Point;
     public sprite1Frame: Point;
-
-    // public sprite2: Sprite;
-    public sprite2Pos: Point;
-    public sprite2Frame: Point;
 
     public worldSpaceMatrix: M3x3;
 
@@ -96,12 +110,6 @@ export class Game {
 
         this.sprite1Pos = new Point();
         this.sprite1Frame = new Point();
-
-        this.sprite2Pos = new Point();
-        this.sprite2Frame = new Point();
-
-        // this.sprite2 = new Sprite(this.gl, "images/sprite.png", Constants.vertexShaderSource, Constants.fragmentShaderSource);
-
         this.gatherRenderables();
 
     }
@@ -110,14 +118,14 @@ export class Game {
         this.renderables = {
             layers: [
                 {
-                    blendmode: 0,
+                    blendmode: Game.BLENDMODE_ALPHA,
                     objs: [
                         {
                             sprite: "alien",
                             position: { x: 32, y: 32 },
                             frame: { x: 0, y: 0 },
                             flip: false,
-                            blendmode: 0,
+                            blendmode: Game.BLENDMODE_ALPHA,
                             options: {}
                         },
                         {
@@ -138,7 +146,7 @@ export class Game {
                             position: { x: 0, y: 0 },
                             frame: { x: 0, y: 0 },
                             flip: false,
-                            blendmode: 0,
+                            blendmode: Game.BLENDMODE_ALPHA,
                             options: {
                                 scalex: 512, scaley: 240,
                                 u_color: [0.5, 0.125, 0.25, 1]
@@ -164,18 +172,18 @@ export class Game {
             this.canvasElement.height = h;
             const wRatio = w / (h / Constants.GAME_HEIGHT);
             this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
-            return
+        } else {
+            // Debounced resize
+            if (this._resizeTimer) {
+                clearTimeout(this._resizeTimer);
+            }
+            this._resizeTimer = setTimeout(() => {
+                this.canvasElement.width = w;
+                this.canvasElement.height = h;
+                const wRatio = w / (h / Constants.GAME_HEIGHT);
+                this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
+            }, 100);
         }
-        // ELSE : debounded resize
-        if (this._resizeTimer) {
-            clearTimeout(this._resizeTimer);
-        }
-        this._resizeTimer = setTimeout(() => {
-            this.canvasElement.width = w;
-            this.canvasElement.height = h;
-            const wRatio = w / (h / Constants.GAME_HEIGHT);
-            this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
-        }, 100);
     }
 
     setBuffer(buffer?: BackBuffer): void {
@@ -201,17 +209,15 @@ export class Game {
     }
 
     public update(): void {
-
-
         for (let l = 0; l < this.renderables.layers.length; l++) {
-            let layer = this.renderables.layers[l];
+            const layer = this.renderables.layers[l];
 
             this.setBuffer(this.backBuffer);
             this.gl.clear(this.gl.COLOR_BUFFER_BIT);
 
             for (let i = 0; i < layer.objs.length; i++) {
-                let obj = layer.objs[i];
-                let sprite = this.sprites[obj.sprite];
+                const obj = layer.objs[i];
+                const sprite = this.sprites[obj.sprite];
 
                 this.setBlendMode(obj.blendmode);
                 sprite.render(obj.position, obj.frame, obj.options);
@@ -229,41 +235,31 @@ export class Game {
         this.finalBuffer.render();
 
         this.gl.flush();
-        // for (let l = 0; l < this.renderables.layers.length; l++) {
-        //     const layer = this.renderables.layers[l]
-
-        //     this.setBuffer(this.backBuffer);
-        //     this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-
-        //     for (let i = 0; i < layer.objs.length; i++) {
-        //         const obj = layer.objs[i];
-        //         const sprite = this.sprites[obj.sprite];
-
-        //         this.setBlendMode(obj.blendmode);
-        //         sprite.render(obj.position, obj.frame);
-        //     }
-
-        //     this.setBlendMode(layer.blendmode);
-        //     this.setBuffer(this.finalBuffer);
-        //     this.backBuffer.render();
-
-        // }
-
-        // this.setBuffer();
-        // this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        // this.setBlendMode(Game.BLENDMODE_ALPHA);
-        // this.finalBuffer.render();
-
-        // this.gl.flush();
-
     }
-
 
 }
 
+// type TParameters =
+//     | { uniform: true; location: WebGLUniformLocation | null; type: number }
+//     | { uniform: false; location: number; type: number };
+
 type TParameters =
-    | { uniform: true; location: WebGLUniformLocation | null; type: number }
-    | { uniform: false; location: number; type: number };
+    | {
+        uniform: true;
+        location: WebGLUniformLocation;
+        type: number;
+    }
+    | {
+        uniform: false;
+        location: number;
+        type: number;
+    };
+
+// type TParameters = {
+//     uniform: boolean;
+//     location: WebGLUniformLocation | number;
+//     type: number;
+// };
 
 export class Material {
 
@@ -312,7 +308,6 @@ export class Material {
     }
 
     gatherParameters(): void {
-
         const gl = this.gl;
         let isUniform = 0;
 
@@ -327,64 +322,101 @@ export class Material {
                 if (isUniform) {
                     details = gl.getActiveUniform(this.program, i);
                     location = gl.getUniformLocation(this.program, details!.name);
+                    this.parameters[details!.name] = {
+                        location: location as WebGLUniformLocation,
+                        uniform: true,
+                        type: details!.type
+                    };
                 } else {
                     details = gl.getActiveAttrib(this.program, i);
                     location = gl.getAttribLocation(this.program, details!.name);
+                    this.parameters[details!.name] = {
+                        location: location as number,
+                        uniform: false,
+                        type: details!.type
+                    };
                 }
 
-                // @ts-expect-error
-                this.parameters[details!.name] = {
-                    location: location,
-                    uniform: !!isUniform,
-                    type: details!.type
-                }
             }
             isUniform++;
         }
 
     }
 
-    setParam(w_name: string, a?: any, b?: any, c?: any, d?: any, e?: any) {
+    setParam(w_name: string, a?: any, b?: any, c?: any, d?: any) {
         const gl = this.gl;
 
-        if (w_name in this.parameters) {
-            const param = this.parameters[w_name];
-            if (param.uniform) {
-                switch (param.type) {
-                    case gl.FLOAT: gl.uniform1f(param.location, a); break;
-                    case gl.FLOAT_VEC2: gl.uniform2f(param.location, a, b); break;
-                    case gl.FLOAT_VEC3: gl.uniform3f(param.location, a, b, c); break;
-                    case gl.FLOAT_VEC4: gl.uniform4f(param.location, a, b, c, d); break;
-                    case gl.FLOAT_MAT3: gl.uniformMatrix3fv(param.location, false, a); break;
-                    case gl.FLOAT_MAT4: gl.uniformMatrix4fv(param.location, false, a); break;
-                    case gl.SAMPLER_2D: gl.uniform1i(param.location, a); break;
-                }
-            } else {
-                gl.enableVertexAttribArray(param.location);
-                if (a == undefined) {
-                    a = gl.FLOAT;
-                }
-                if (b == undefined) {
-                    b = false;
-                }
-                if (c == undefined) {
-                    c = 0;
-                }
-                if (d == undefined) {
-                    d = 0;
-                }
+        if (!(w_name in this.parameters)) {
+            console.warn(`Parameter ${w_name} not found in shader program.`);
+            return;
+        }
 
-                switch (param.type) {
-                    case gl.FLOAT: gl.vertexAttribPointer(param.location, 1, a, b, c, d); break;
-                    case gl.FLOAT_VEC2: gl.vertexAttribPointer(param.location, 2, a, b, c, d); break;
-                    case gl.FLOAT_VEC3: gl.vertexAttribPointer(param.location, 3, a, b, c, d); break;
-                    case gl.FLOAT_VEC4: gl.vertexAttribPointer(param.location, 4, a, b, c, d); break;
-                }
-            }
+        const param = this.parameters[w_name];
+
+        if (param.uniform) {
+            this.setUniform(param, a, b, c, d);
+        } else {
+            this.setAttribute(param, a, b, c, d);
         }
 
     }
 
+    private setUniform(param: TParameters & { uniform: true }, a?: any, b?: any, c?: any, d?: any) {
+        const gl = this.gl;
+
+        switch (param.type) {
+            case gl.FLOAT:
+                gl.uniform1f(param.location, a);
+                break;
+            case gl.FLOAT_VEC2:
+                gl.uniform2f(param.location, a, b);
+                break;
+            case gl.FLOAT_VEC3:
+                gl.uniform3f(param.location, a, b, c);
+                break;
+            case gl.FLOAT_VEC4:
+                gl.uniform4f(param.location, a, b, c, d);
+                break;
+            case gl.FLOAT_MAT3:
+                gl.uniformMatrix3fv(param.location, false, a);
+                break;
+            case gl.FLOAT_MAT4:
+                gl.uniformMatrix4fv(param.location, false, a);
+                break;
+            case gl.SAMPLER_2D:
+                gl.uniform1i(param.location, a);
+                break;
+            default:
+                console.warn(`Unsupported uniform type: ${param.type}`);
+        }
+    }
+
+    private setAttribute(param: TParameters & { uniform: false }, a?: any, b?: any, c?: any, d?: any) {
+        const gl = this.gl;
+
+        gl.enableVertexAttribArray(param.location);
+        const type = a ?? gl.FLOAT;
+        const normalized = b ?? false;
+        const stride = c ?? 0;
+        const offset = d ?? 0;
+
+        switch (param.type) {
+            case gl.FLOAT:
+                gl.vertexAttribPointer(param.location, 1, type, normalized, stride, offset);
+                break;
+            case gl.FLOAT_VEC2:
+                gl.vertexAttribPointer(param.location, 2, type, normalized, stride, offset);
+                break;
+            case gl.FLOAT_VEC3:
+                gl.vertexAttribPointer(param.location, 3, type, normalized, stride, offset);
+                break;
+            case gl.FLOAT_VEC4:
+                gl.vertexAttribPointer(param.location, 4, type, normalized, stride, offset);
+                break;
+            default:
+                console.warn(`Unsupported attribute type: ${param.type}`);
+        }
+    }
 
 }
 
@@ -493,8 +525,8 @@ export class Sprite {
             this.material.setParam("u_color", 1, 1, 1, 1);
 
             for (const option in options) {
-                // @ts-expect-error
-                this.material.setParam.apply(this.material, [option].concat(options[option]))
+                const optionValue = options[option];
+                this.material.setParam(option, ...optionValue);
 
                 if (option == "scalex") {
                     oMat = oMat.scale(options.scalex, 1.0);
@@ -524,7 +556,6 @@ export class Sprite {
 
         }
     }
-
 
 }
 
@@ -608,12 +639,11 @@ export class BackBuffer {
         gl.bindTexture(gl.TEXTURE_2D, null);
         gl.bindTexture(gl.RENDERBUFFER, null);
         gl.bindTexture(gl.FRAMEBUFFER, null);
-
-
     }
+
     render() {
         const gl = this.gl;
-        //
+
         gl.useProgram(this.material.program);
 
         gl.activeTexture(gl.TEXTURE0);
@@ -631,7 +661,6 @@ export class BackBuffer {
         gl.useProgram(null);
 
     }
-
 
 }
 
