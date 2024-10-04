@@ -21,10 +21,11 @@ export const vertexShaderSource = /*glsl*/ `
 export const fragmentShaderSource = /*glsl*/ `
     precision mediump float;
     uniform sampler2D u_image;
+    uniform vec4 u_color;
     varying vec2 v_texCoord;
 
     void main(){
-        gl_FragColor = texture2D(u_image, v_texCoord);
+        gl_FragColor = u_color * texture2D(u_image, v_texCoord);
     }
 `;
 

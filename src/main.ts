@@ -32,13 +32,17 @@ export class Game {
 
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
+    public lightBuffer: BackBuffer;
+    public backBuffer: BackBuffer;
+    public halo: Sprite;
+    public white: Sprite;
     public sprite1: Sprite;
     public sprite1Pos: Point;
     public sprite1Frame: Point;
 
     // public sprite2: Sprite;
-    // public sprite2Pos: Point;
-    // public sprite2Frame: Point;
+    public sprite2Pos: Point;
+    public sprite2Frame: Point;
 
     public worldSpaceMatrix: M3x3;
 
@@ -58,6 +62,20 @@ export class Game {
 
         document.body.appendChild(this.canvasElement);
 
+        this.backBuffer = new BackBuffer(this.gl, { width: 512, height: 240 });
+        this.lightBuffer = new BackBuffer(this.gl, { width: 512, height: 240 });
+
+        this.halo = new Sprite(this.gl, "images/halo.png", Constants.vertexShaderSource,
+            Constants.fragmentShaderSource, {
+            width: 256,
+            height: 256,
+        });
+        this.white = new Sprite(this.gl, "images/white.png", Constants.vertexShaderSource,
+            Constants.fragmentShaderSource, {
+            width: 1,
+            height: 1,
+        });
+
         this.sprite1 = new Sprite(
             this.gl,
             "images/alien.png",
@@ -70,6 +88,9 @@ export class Game {
         );
         this.sprite1Pos = new Point();
         this.sprite1Frame = new Point();
+
+        this.sprite2Pos = new Point();
+        this.sprite2Frame = new Point();
 
         // this.sprite2 = new Sprite(this.gl, "images/sprite.png", Constants.vertexShaderSource, Constants.fragmentShaderSource);
     }
@@ -85,15 +106,42 @@ export class Game {
         this.sprite1Frame.y = (new Date().getTime() * 0.002) % 2;
         this.sprite1Pos.x = (this.sprite1Pos.x + 1.1) % 256;
 
-        // this.sprite2Frame.x = (new Date() * 0.006) % 3;
-        // this.sprite2Frame.y = (new Date() * 0.002) % 2;
-        // this.sprite2Pos.x = (this.sprite2Pos.x + 1.1) % 256;
+        this.sprite2Frame.x = (new Date().getTime() * 0.006) % 3;
+        this.sprite2Frame.y = (new Date().getTime() * 0.002) % 2;
 
+        this.setBuffer(this.backBuffer);
         this.sprite1.render(this.sprite1Pos, this.sprite1Frame);
-        // this.sprite2.render(this.sprite2Pos, this.sprite2Frame);
+        this.sprite1.render(this.sprite2Pos, this.sprite2Frame);
+
+
+        this.setBuffer(this.lightBuffer);
+        this.white.render(new Point(), new Point(), { scalex: 512, scaley: 240, u_color: [0.125, 0.125, 0.25, 1] });
+
+        this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+        // this.halo.render(this.sprite1Pos, new Point());
+        this.halo.render(new Point(32, -64), new Point());
+
+        this.setBuffer();
+        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
+        this.backBuffer.render();
+        // this.gl.blendFunc(this.gl.ONE, this.gl.ONE);
+        this.gl.blendFunc(this.gl.DST_COLOR, this.gl.ZERO);
+        this.lightBuffer.render();
 
         this.gl.flush();
 
+    }
+
+    setBuffer(buffer?: BackBuffer): void {
+        const gl = this.gl;
+        if (buffer instanceof BackBuffer) {
+            gl.viewport(0, 0, buffer.size.x, buffer.size.y);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, buffer.fbuffer);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+        } else {
+            gl.viewport(0, 0, this.canvasElement.width, this.canvasElement.height);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        }
     }
 
     public resize(w: number, h: number, noDebounce?: boolean): void {
@@ -337,16 +385,30 @@ export class Sprite {
 
     }
 
-    render(position: Point, frames: Point) {
+    render(position: Point, frames: Point, options?: Record<string, any>) {
         if (this.isLoaded) {
             const gl = this.gl;
 
             const frame_x = Math.floor(frames.x) * this.uv_x;
             const frame_y = Math.floor(frames.y) * this.uv_y;
 
-            const oMat = new M3x3().translation(position.x, position.y);
+            let oMat = new M3x3().translation(position.x, position.y);
 
             gl.useProgram(this.material.program);
+
+            this.material.setParam("u_color", 1, 1, 1, 1);
+
+            for (const option in options) {
+                // @ts-expect-error
+                this.material.setParam.apply(this.material, [option].concat(options[option]))
+
+                if (option == "scalex") {
+                    oMat = oMat.scale(options.scalex, 1.0);
+                }
+                if (option == "scaley") {
+                    oMat = oMat.scale(1.0, options.scaley);
+                }
+            }
 
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, this.gl_tex);
@@ -354,7 +416,6 @@ export class Sprite {
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);
             this.material.setParam("a_texCoord");
-
 
             gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
             this.material.setParam("a_position");
@@ -368,6 +429,113 @@ export class Sprite {
             gl.useProgram(null);
 
         }
+    }
+
+
+}
+
+export class BackBuffer {
+
+    public gl!: WebGL2RenderingContext;
+    public material: Material;
+    public size: Point;
+    public fbuffer: WebGLFramebuffer;
+    public rbuffer: WebGLRenderbuffer;
+    public texture: WebGLTexture;
+    public tex_buff: WebGLBuffer;
+    public geo_buff: WebGLBuffer;
+
+    static VS = /*glsl*/ `
+    attribute vec2 a_position;
+    attribute vec2 a_texCoord;
+
+    varying vec2 v_texCoord;
+    void main() {
+        gl_Position = vec4(a_position, 1, 1);
+        v_texCoord = a_texCoord;
+    }
+    `;
+    static FS = /*glsl*/ `
+    precision mediump float;
+    uniform sampler2D u_image;
+    varying vec2 v_texCoord;
+
+    void main(){
+        gl_FragColor = texture2D(u_image, v_texCoord);
+    }
+    `;
+
+    constructor(
+        gl: WebGL2RenderingContext,
+
+        options: {
+            height?: number;
+            width?: number;
+        } = {}
+
+    ) {
+        this.gl = gl;
+        this.material = new Material(this.gl, BackBuffer.VS, BackBuffer.FS);
+        this.size = new Point(512, 512);
+        if (typeof options.width === 'number') {
+            this.size.x = options.width * 1;
+        }
+        if (typeof options.height === 'number') {
+            this.size.y = options.height * 1;
+        }
+
+        this.fbuffer = gl.createFramebuffer()!;
+        this.rbuffer = gl.createRenderbuffer()!;
+        this.texture = gl.createTexture()!;
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbuffer);
+        gl.bindRenderbuffer(gl.RENDERBUFFER, this.rbuffer);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.size.x, this.size.y, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+
+        gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, this.size.x, this.size.y);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.texture, 0);
+        gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.rbuffer);
+
+        // Create geometry for rendering
+        this.tex_buff = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);
+        gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(), gl.STATIC_DRAW);
+
+        this.geo_buff = gl.createBuffer()!;
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
+        gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(-1, -1, 2, 2), gl.STATIC_DRAW);
+
+        gl.bindTexture(gl.TEXTURE_2D, null);
+        gl.bindTexture(gl.RENDERBUFFER, null);
+        gl.bindTexture(gl.FRAMEBUFFER, null);
+
+
+    }
+    render() {
+        const gl = this.gl;
+        //
+        gl.useProgram(this.material.program);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        this.material.setParam("u_image", 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.tex_buff);
+        this.material.setParam("a_texCoord");
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.geo_buff);
+        this.material.setParam("a_position");
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 6);
+
+        gl.useProgram(null);
+
     }
 
 
