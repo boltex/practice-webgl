@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             window.innerHeight,
             true // First resize not debounced.
         );
-        loop();
+        loop(0);
     } else {
         console.log('Game instance already started');
     }
@@ -23,8 +23,8 @@ window.addEventListener('resize', (event) => {
     }
 });
 
-function loop(): void {
-    window.game.update();
+function loop(timestamp: number): void {
+    window.game.update(timestamp);
     requestAnimationFrame(loop);
 }
 
@@ -50,6 +50,8 @@ export class Game {
 
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
+    public ctx!: any;
+
     public finalBuffer: BackBuffer;
     public backBuffer: BackBuffer;
     public sprites: Record<string, Sprite>;
@@ -59,6 +61,23 @@ export class Game {
     public sprite1Frame: Point;
 
     public worldSpaceMatrix: M3x3;
+
+    // Key press state
+    public keysPressed: Record<string, any> = {};
+
+    // Test Orientation
+    public orientation = 0;
+    public changeOrientationTimer: ReturnType<typeof setTimeout> | undefined;
+
+    // FPS counter
+    public lastTime = 0;
+    public fps = 0;
+    public fpsInterval = 1000; // Update FPS every 1 second
+    public fpsLastTime = 0;
+    public currentFrame = 0;
+    public frameTimer = 0;
+    public frameInterval = 80; // Time (ms) per frame
+    public frameCount = 249; // Number of frames in the sprite sheet
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -114,6 +133,26 @@ export class Game {
 
     }
 
+    debouncedChangeOrientation(clockwise: boolean) {
+        if (this.changeOrientationTimer) {
+            clearTimeout(this.changeOrientationTimer);
+        }
+        this.changeOrientationTimer = setTimeout(() => {
+            this.changeOrientation(clockwise);
+        }, 60);
+    }
+    changeOrientation(clockwise: boolean) {
+        if (clockwise) {
+            this.orientation = this.orientation + 1;
+        } else {
+            this.orientation = this.orientation - 1;
+        }
+        if (this.orientation > 15) {
+            this.orientation = 0;
+        } else if (this.orientation < 0) {
+            this.orientation = 15;
+        }
+    }
     gatherRenderables(): void {
         this.renderables = {
             layers: [
@@ -208,7 +247,42 @@ export class Game {
         }
     }
 
-    public update(): void {
+    checkKeys(): void {
+        if (this.keysPressed['ArrowUp'] || this.keysPressed['w']) {
+            // playerY -= playerSpeed * deltaTime;
+            console.log("up");
+        }
+        if (this.keysPressed['ArrowDown'] || this.keysPressed['s']) {
+            // playerY += playerSpeed * deltaTime;
+            console.log("down");
+        }
+        if (this.keysPressed['ArrowLeft'] || this.keysPressed['a']) {
+            // playerX -= playerSpeed * deltaTime;
+            // debouncedChangeOrientation(false);
+            console.log("left");
+
+        }
+        if (this.keysPressed['ArrowRight'] || this.keysPressed['d']) {
+            // playerX += playerSpeed * deltaTime;
+            // debouncedChangeOrientation(true);
+            console.log("right");
+        }
+    }
+
+    public update(timestamp: number): void {
+
+        const deltaTime = timestamp - this.lastTime;
+        this.lastTime = timestamp;
+
+        // Update game objects, handle input, etc.
+        this.frameTimer += deltaTime;
+        if (this.frameTimer > this.frameInterval) {
+            this.frameTimer = 0;
+            this.currentFrame = (this.currentFrame + 1) % this.frameCount;
+        }
+        this.checkKeys();
+
+        // Render
         for (let l = 0; l < this.renderables.layers.length; l++) {
             const layer = this.renderables.layers[l];
 
@@ -235,6 +309,12 @@ export class Game {
         this.finalBuffer.render();
 
         this.gl.flush();
+
+        // Calculate FPS
+        if (timestamp - this.fpsLastTime > this.fpsInterval) {
+            this.fps = Math.round(1000 / deltaTime);
+            this.fpsLastTime = timestamp;
+        }
     }
 
 }
@@ -344,13 +424,12 @@ export class Material {
     }
 
     setParam(w_name: string, a?: any, b?: any, c?: any, d?: any) {
-        const gl = this.gl;
 
         if (!(w_name in this.parameters)) {
-            console.warn(`Parameter ${w_name} not found in shader program.`);
             return;
         }
 
+        const gl = this.gl;
         const param = this.parameters[w_name];
 
         if (param.uniform) {
@@ -637,8 +716,8 @@ export class BackBuffer {
         gl.bufferData(gl.ARRAY_BUFFER, Sprite.createRectArray(-1, -1, 2, 2), gl.STATIC_DRAW);
 
         gl.bindTexture(gl.TEXTURE_2D, null);
-        gl.bindTexture(gl.RENDERBUFFER, null);
-        gl.bindTexture(gl.FRAMEBUFFER, null);
+        // gl.bindTexture(gl.RENDERBUFFER, null); // ! GIVES WARNING
+        // gl.bindTexture(gl.FRAMEBUFFER, null); // ! GIVES WARNING
     }
 
     render() {
