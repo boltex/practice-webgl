@@ -30,6 +30,7 @@ function loop(timestamp: number): void {
 
 type Renderable = {
     sprite: string;
+    oldPosition: Point;
     position: Point;
     frame: Point;
     flip: boolean;
@@ -74,10 +75,15 @@ export class Game {
     public fps = 0;
     public fpsInterval = 1000; // Update FPS every 1 second
     public fpsLastTime = 0;
-    public currentFrame = 0;
-    public frameTimer = 0;
-    public frameInterval = 80; // Time (ms) per frame
-    public frameCount = 249; // Number of frames in the sprite sheet
+
+    public accumulator = 0; // What remained in deltaTime after last update 
+    public timeSoFar = 0; // t in ms
+    public timePerTick = 125; // dt in ms
+
+    // Test frame experiments
+    // public currentFrame = 0;
+    // public frameTimer = 0;
+    // public frameInterval = 80; // Time (ms) per frame
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -134,6 +140,7 @@ export class Game {
     }
 
     debouncedChangeOrientation(clockwise: boolean) {
+        // EXPERIMENTAL METHOD - WILL BE DELETED
         if (this.changeOrientationTimer) {
             clearTimeout(this.changeOrientationTimer);
         }
@@ -141,7 +148,9 @@ export class Game {
             this.changeOrientation(clockwise);
         }, 60);
     }
+
     changeOrientation(clockwise: boolean) {
+        // EXPERIMENTAL METHOD - WILL BE DELETED
         if (clockwise) {
             this.orientation = this.orientation + 1;
         } else {
@@ -153,6 +162,7 @@ export class Game {
             this.orientation = 15;
         }
     }
+
     gatherRenderables(): void {
         this.renderables = {
             layers: [
@@ -162,6 +172,7 @@ export class Game {
                         {
                             sprite: "alien",
                             position: { x: 32, y: 32 },
+                            oldPosition: { x: 32, y: 32 },
                             frame: { x: 0, y: 0 },
                             flip: false,
                             blendmode: Game.BLENDMODE_ALPHA,
@@ -170,6 +181,7 @@ export class Game {
                         {
                             sprite: "alien",
                             position: { x: 64, y: 64 },
+                            oldPosition: { x: 64, y: 64 },
                             frame: { x: 0, y: 0 },
                             flip: false,
                             blendmode: Game.BLENDMODE_ALPHA,
@@ -183,6 +195,7 @@ export class Game {
                         {
                             sprite: "white",
                             position: { x: 0, y: 0 },
+                            oldPosition: { x: 0, y: 0 },
                             frame: { x: 0, y: 0 },
                             flip: false,
                             blendmode: Game.BLENDMODE_ALPHA,
@@ -194,6 +207,7 @@ export class Game {
                         {
                             sprite: "halo",
                             position: { x: 128, y: 80 },
+                            oldPosition: { x: 128, y: 80 },
                             frame: { x: 0, y: 0 },
                             flip: false,
                             blendmode: Game.BLENDMODE_ADDITIVE,
@@ -274,15 +288,45 @@ export class Game {
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
-        // Update game objects, handle input, etc.
-        this.frameTimer += deltaTime;
-        if (this.frameTimer > this.frameInterval) {
-            this.frameTimer = 0;
-            this.currentFrame = (this.currentFrame + 1) % this.frameCount;
-        }
-        this.checkKeys();
+        this.accumulator += deltaTime;
 
-        // Render
+        // // Update game objects, handle input, etc.
+        // this.frameTimer += deltaTime;
+        // if (this.frameTimer > this.frameInterval) {
+        //     this.frameTimer = 0;
+        //     this.currentFrame = (this.currentFrame + 1) % this.frameCount;
+        // }
+        // this.checkKeys();
+
+        // https://gafferongames.com/post/fix_your_timestep/
+        while (this.accumulator >= this.timePerTick) {
+            this.tick();
+            this.accumulator -= this.timePerTick;
+            this.timeSoFar += this.timePerTick;
+        }
+        const interpolationRatio = this.accumulator / this.timePerTick;
+
+        this.render(interpolationRatio);
+
+        // Calculate FPS
+        if (timestamp - this.fpsLastTime > this.fpsInterval) {
+            this.fps = Math.round(1000 / deltaTime);
+            this.fpsLastTime = timestamp;
+            // console.log('requestAnimationFrame FPS ', this.fps); // 30
+        }
+    }
+
+    public tick(): void {
+        // Advace game states in renderables:
+        // from this.timeSoFar, by a this.timePerTick amount of time.
+        console.log('TICK');
+    }
+
+    public interpolate(min: Point, max: Point, fract: number): Point {
+        return new Point(max.x + (min.x - max.x) * fract, max.y + (min.y - max.y) * fract);
+    }
+
+    public render(interpolation: number): void {
         for (let l = 0; l < this.renderables.layers.length; l++) {
             const layer = this.renderables.layers[l];
 
@@ -294,7 +338,7 @@ export class Game {
                 const sprite = this.sprites[obj.sprite];
 
                 this.setBlendMode(obj.blendmode);
-                sprite.render(obj.position, obj.frame, obj.options);
+                sprite.render(this.interpolate(obj.oldPosition, obj.position, interpolation), obj.frame, obj.options);
             }
 
             this.setBlendMode(layer.blendmode);
@@ -309,12 +353,6 @@ export class Game {
         this.finalBuffer.render();
 
         this.gl.flush();
-
-        // Calculate FPS
-        if (timestamp - this.fpsLastTime > this.fpsInterval) {
-            this.fps = Math.round(1000 / deltaTime);
-            this.fpsLastTime = timestamp;
-        }
     }
 
 }
@@ -743,3 +781,15 @@ export class BackBuffer {
 
 }
 
+export class Alien {
+
+    public frameCount = 249; // Number of frames in the sprite sheet
+
+    constructor() {
+
+        //
+
+    }
+
+
+}
