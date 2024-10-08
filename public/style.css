@@ -9,6 +9,8 @@ html {
   align-items: center;
   /* background-color: #000; */
   overflow: hidden;
+  user-select: none;
+  /* cursor: none; */
 }
 
 canvas {
@@ -21,4 +23,14 @@ canvas {
   /* display: block; */
   /* Prevent blurring of scaled canvas */
   /* image-rendering: pixelated; */
+}
+
+button {
+  user-select: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 10px 20px;
+  font-size: 18px;
 }

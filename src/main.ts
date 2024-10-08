@@ -9,7 +9,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
             window.innerHeight,
             true // First resize not debounced.
         );
-        loop(0);
     } else {
         console.log('Game instance already started');
     }
@@ -49,6 +48,7 @@ type RenderableLayers = {
 
 export class Game {
 
+    public started = false;
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
     public ctx!: any;
@@ -84,6 +84,7 @@ export class Game {
     // public currentFrame = 0;
     // public frameTimer = 0;
     // public frameInterval = 80; // Time (ms) per frame
+    // public frameCount = 249; // Number of frames in the sprite sheet
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -105,6 +106,26 @@ export class Game {
         this.gl.enable(this.gl.BLEND);
 
         document.body.appendChild(this.canvasElement);
+
+        // Create the start button
+        const startButton = document.createElement("button");
+        startButton.textContent = "Start Game";
+        startButton.style.position = "absolute";
+        startButton.style.top = "50%";
+        startButton.style.left = "50%";
+        startButton.style.transform = "translate(-50%, -50%)";
+        startButton.style.padding = "10px 20px";
+        startButton.style.fontSize = "18px";
+        document.body.appendChild(startButton);
+        startButton.addEventListener("click", () => {
+            // Start the game only after button is clicked
+            console.log('Starting the game!');
+            // Hide and remove the button
+            startButton.style.display = 'none';
+            document.body.style.cursor = 'none';
+            this.started = true;
+            loop(0);
+        });
 
         this.backBuffer = new BackBuffer(this.gl, { width: 512, height: 240 });
         this.finalBuffer = new BackBuffer(this.gl, { width: 512, height: 240 });
@@ -290,15 +311,6 @@ export class Game {
 
         this.accumulator += deltaTime;
 
-        // // Update game objects, handle input, etc.
-        // this.frameTimer += deltaTime;
-        // if (this.frameTimer > this.frameInterval) {
-        //     this.frameTimer = 0;
-        //     this.currentFrame = (this.currentFrame + 1) % this.frameCount;
-        // }
-        // this.checkKeys();
-
-        // https://gafferongames.com/post/fix_your_timestep/
         while (this.accumulator >= this.timePerTick) {
             this.tick();
             this.accumulator -= this.timePerTick;
@@ -317,9 +329,17 @@ export class Game {
     }
 
     public tick(): void {
-        // Advace game states in renderables:
+        // Advance game states in renderables:
         // from this.timeSoFar, by a this.timePerTick amount of time.
-        console.log('TICK');
+
+        // // Update game objects, handle input, etc.
+        // this.frameTimer += deltaTime;
+        // if (this.frameTimer > this.frameInterval) {
+        //     this.frameTimer = 0;
+        //     this.currentFrame = (this.currentFrame + 1) % this.frameCount;
+        // }
+        // this.checkKeys();
+
     }
 
     public interpolate(min: Point, max: Point, fract: number): Point {
@@ -781,14 +801,76 @@ export class BackBuffer {
 
 }
 
-export class Alien {
+type TCommand = {
+    order: number;
+    x: number;
+    y: number;
+    entityId: number;
+}
 
-    public frameCount = 249; // Number of frames in the sprite sheet
+type TEntity = {
+    id: number;
+    // states
+    type: number;
+    hitPoints: number;
+    state: number;
+    // Ten queuable commands
+    orderQty: number;
+    orderIndex: number;
+    orderPool: [
+        TCommand, TCommand, TCommand, TCommand, TCommand,
+        TCommand, TCommand, TCommand, TCommand, TCommand
+    ];
+    // renderable display properties
+    orientation: number;
+    frameIndex: number;
+    active: boolean;
+}
 
-    constructor() {
+/**
+ * Singleton Entities Object Pool
+ */
+export class Entities {
 
-        //
+    private pool: Array<TEntity> = [];
+    private lastId = 0;
 
+    constructor(initialPoolSize: number) {
+
+        for (let i = 0; i < initialPoolSize; i++) {
+            this.pool.push({
+                id: 0,
+                type: 0,
+                hitPoints: 0,
+                state: 0,
+                orderQty: 0,
+                orderIndex: 0,
+                orderPool: [
+                    { order: 0, x: 0, y: 0, entityId: 0 }, { order: 0, x: 0, y: 0, entityId: 0 },
+                    { order: 0, x: 0, y: 0, entityId: 0 }, { order: 0, x: 0, y: 0, entityId: 0 },
+                    { order: 0, x: 0, y: 0, entityId: 0 }, { order: 0, x: 0, y: 0, entityId: 0 },
+                    { order: 0, x: 0, y: 0, entityId: 0 }, { order: 0, x: 0, y: 0, entityId: 0 },
+                    { order: 0, x: 0, y: 0, entityId: 0 }, { order: 0, x: 0, y: 0, entityId: 0 },
+                ],
+                orientation: 0,
+                frameIndex: 0,
+                active: false,
+            });
+        }
+
+    }
+
+    public spawn(): TEntity | undefined {
+        const entity = this.pool.find(e => !e.active);
+        if (entity) {
+            entity.active = true;
+            entity.id = ++this.lastId;
+            return entity;
+        }
+    }
+
+    public remove(entity: TEntity): void {
+        entity.active = false;
     }
 
 
