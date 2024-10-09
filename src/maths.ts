@@ -59,7 +59,6 @@ export class M3x3 {
             this.matrix[M3x3.M00],
             this.matrix[M3x3.M01],
             this.matrix[M3x3.M02],
-
             this.matrix[M3x3.M10],
             this.matrix[M3x3.M11],
             this.matrix[M3x3.M12],

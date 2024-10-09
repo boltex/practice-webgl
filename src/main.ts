@@ -1,5 +1,6 @@
 import * as Constants from "./constants";
 import { Point, M3x3 } from "./maths";
+import { RenderableLayers, TEntity, TParameters } from "./type";
 
 document.addEventListener('DOMContentLoaded', (event) => {
     if (!window.game) {
@@ -13,6 +14,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         console.log('Game instance already started');
     }
 });
+
 window.addEventListener('resize', (event) => {
     if (window.game) {
         window.game.resize(
@@ -27,25 +29,6 @@ function loop(timestamp: number): void {
     requestAnimationFrame(loop);
 }
 
-type Renderable = {
-    sprite: string;
-    oldPosition: Point;
-    position: Point;
-    frame: Point;
-    flip: boolean;
-    blendmode: number;
-    options: Record<string, any>;
-};
-
-type RenderableLayer = {
-    blendmode: number;
-    objs: Renderable[];
-};
-
-type RenderableLayers = {
-    layers: RenderableLayer[];
-};
-
 export class Game {
 
     public started = false;
@@ -58,10 +41,10 @@ export class Game {
     public sprites: Record<string, Sprite>;
     public renderables!: RenderableLayers;
 
-    public sprite1Pos: Point;
-    public sprite1Frame: Point;
-
     public worldSpaceMatrix: M3x3;
+
+    // Game States
+    public entities!: Entities;
 
     // Key press state
     public keysPressed: Record<string, any> = {};
@@ -154,9 +137,25 @@ export class Game {
 
         };
 
-        this.sprite1Pos = new Point();
-        this.sprite1Frame = new Point();
-        this.gatherRenderables();
+        this.initGameStates();
+
+    }
+
+    initGameStates(): void {
+        // Fill entities
+        this.entities = new Entities(100);
+
+        // Create 2 test Aliens
+        const alien1 = this.entities.spawn();
+        alien1.type = 1;
+        alien1.hitPoints = 100;
+        alien1.x = 10;
+        alien1.y = 10;
+        const alien2 = this.entities.spawn();
+        alien2.type = 1;
+        alien2.hitPoints = 100;
+        alien2.x = 50;
+        alien2.y = 50;
 
     }
 
@@ -240,7 +239,7 @@ export class Game {
         }
     }
 
-    public resize(w: number, h: number, noDebounce?: boolean): void {
+    resize(w: number, h: number, noDebounce?: boolean): void {
         if (noDebounce) {
             this.canvasElement.width = w;
             this.canvasElement.height = h;
@@ -304,7 +303,7 @@ export class Game {
         }
     }
 
-    public update(timestamp: number): void {
+    update(timestamp: number): void {
 
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
@@ -316,7 +315,10 @@ export class Game {
             this.accumulator -= this.timePerTick;
             this.timeSoFar += this.timePerTick;
         }
+
         const interpolationRatio = this.accumulator / this.timePerTick;
+
+        this.gatherRenderables();
 
         this.render(interpolationRatio);
 
@@ -328,7 +330,7 @@ export class Game {
         }
     }
 
-    public tick(): void {
+    tick(): void {
         // Advance game states in renderables:
         // from this.timeSoFar, by a this.timePerTick amount of time.
 
@@ -342,11 +344,11 @@ export class Game {
 
     }
 
-    public interpolate(min: Point, max: Point, fract: number): Point {
+    interpolate(min: Point, max: Point, fract: number): Point {
         return new Point(max.x + (min.x - max.x) * fract, max.y + (min.y - max.y) * fract);
     }
 
-    public render(interpolation: number): void {
+    render(interpolation: number): void {
         for (let l = 0; l < this.renderables.layers.length; l++) {
             const layer = this.renderables.layers[l];
 
@@ -376,28 +378,6 @@ export class Game {
     }
 
 }
-
-// type TParameters =
-//     | { uniform: true; location: WebGLUniformLocation | null; type: number }
-//     | { uniform: false; location: number; type: number };
-
-type TParameters =
-    | {
-        uniform: true;
-        location: WebGLUniformLocation;
-        type: number;
-    }
-    | {
-        uniform: false;
-        location: number;
-        type: number;
-    };
-
-// type TParameters = {
-//     uniform: boolean;
-//     location: WebGLUniformLocation | number;
-//     type: number;
-// };
 
 export class Material {
 
@@ -801,31 +781,7 @@ export class BackBuffer {
 
 }
 
-type TCommand = {
-    order: number;
-    x: number;
-    y: number;
-    entityId: number;
-}
 
-type TEntity = {
-    id: number;
-    // states
-    type: number;
-    hitPoints: number;
-    state: number;
-    // Ten queuable commands
-    orderQty: number;
-    orderIndex: number;
-    orderPool: [
-        TCommand, TCommand, TCommand, TCommand, TCommand,
-        TCommand, TCommand, TCommand, TCommand, TCommand
-    ];
-    // renderable display properties
-    orientation: number;
-    frameIndex: number;
-    active: boolean;
-}
 
 /**
  * Singleton Entities Object Pool
@@ -843,6 +799,8 @@ export class Entities {
                 type: 0,
                 hitPoints: 0,
                 state: 0,
+                x: 0,
+                y: 0,
                 orderQty: 0,
                 orderIndex: 0,
                 orderPool: [
@@ -860,16 +818,18 @@ export class Entities {
 
     }
 
-    public spawn(): TEntity | undefined {
+    spawn(): TEntity {
         const entity = this.pool.find(e => !e.active);
         if (entity) {
             entity.active = true;
             entity.id = ++this.lastId;
             return entity;
+        } else {
+            throw new Error("Pool Full");
         }
     }
 
-    public remove(entity: TEntity): void {
+    remove(entity: TEntity): void {
         entity.active = false;
     }
 
