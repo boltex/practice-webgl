@@ -61,7 +61,8 @@ export class Game {
 
     public accumulator = 0; // What remained in deltaTime after last update 
     public timeSoFar = 0; // t in ms
-    public timePerTick = 125; // dt in ms
+    public timePerTick = 125; // dt in ms (125 is 8 per second)
+    public timerTriggerAccum = this.timePerTick * 3; // 3 times the timePerTick
 
     // Test frame experiments
     // public currentFrame = 0;
@@ -107,6 +108,8 @@ export class Game {
             startButton.style.display = 'none';
             document.body.style.cursor = 'none';
             this.started = true;
+            // Setup timer in case RAF Skipped when not in foreground or minimized.
+            setInterval(() => { this.checkUpdate(); }, 500);
             loop(0);
         });
 
@@ -303,7 +306,7 @@ export class Game {
         }
     }
 
-    update(timestamp: number): void {
+    update(timestamp: number, skipRender?: boolean): void {
 
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
@@ -316,18 +319,28 @@ export class Game {
             this.timeSoFar += this.timePerTick;
         }
 
-        const interpolationRatio = this.accumulator / this.timePerTick;
-
-        this.gatherRenderables();
-
-        this.render(interpolationRatio);
+        if (!skipRender) {
+            this.gatherRenderables();
+            this.render(this.accumulator / this.timePerTick);
+        }
 
         // Calculate FPS
         if (timestamp - this.fpsLastTime > this.fpsInterval) {
             this.fps = Math.round(1000 / deltaTime);
             this.fpsLastTime = timestamp;
-            // console.log('requestAnimationFrame FPS ', this.fps); // 30
+            // console.log('RFA FPS ', this.fps); // 30
         }
+    }
+
+    public checkUpdate(): void {
+        // Checks for needed ticks to be computed if game is minimized
+        const timestamp = performance.now();
+        const deltaTime = timestamp - this.lastTime;
+        if ((this.accumulator + deltaTime) < this.timerTriggerAccum) {
+            return;
+        }
+        // It's been a while, game is minimized: update without rendering.
+        this.update(timestamp, true);
     }
 
     tick(): void {
@@ -788,11 +801,13 @@ export class BackBuffer {
  */
 export class Entities {
 
+    public total: number;
+    public active: number = 0;
     private pool: Array<TEntity> = [];
     private lastId = 0;
 
     constructor(initialPoolSize: number) {
-
+        this.total = initialPoolSize;
         for (let i = 0; i < initialPoolSize; i++) {
             this.pool.push({
                 id: 0,
@@ -819,10 +834,14 @@ export class Entities {
     }
 
     spawn(): TEntity {
+        if (this.active === this.total) {
+            throw new Error("Pool Full");
+        }
         const entity = this.pool.find(e => !e.active);
         if (entity) {
             entity.active = true;
             entity.id = ++this.lastId;
+            this.active++;
             return entity;
         } else {
             throw new Error("Pool Full");
@@ -830,6 +849,7 @@ export class Entities {
     }
 
     remove(entity: TEntity): void {
+        this.active--;
         entity.active = false;
     }
 
