@@ -46,12 +46,14 @@ export class Game {
     // Game States
     public entities!: Entities;
 
+    // A.I.
+    public ai!: AI;
+
     // Key press state
     public keysPressed: Record<string, any> = {};
 
     // Test Orientation
     public orientation = 0;
-    public changeOrientationTimer: ReturnType<typeof setTimeout> | undefined;
 
     // FPS counter
     public lastTime = 0;
@@ -61,14 +63,11 @@ export class Game {
 
     public accumulator = 0; // What remained in deltaTime after last update 
     public timeSoFar = 0; // t in ms
+    public currentTick = 0;
     public timePerTick = 125; // dt in ms (125 is 8 per second)
     public timerTriggerAccum = this.timePerTick * 3; // 3 times the timePerTick
 
-    // Test frame experiments
-    // public currentFrame = 0;
-    // public frameTimer = 0;
-    // public frameInterval = 80; // Time (ms) per frame
-    // public frameCount = 249; // Number of frames in the sprite sheet
+    // public testFrameCount = 249; // Number of frames in the sprite sheet
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -147,6 +146,7 @@ export class Game {
     initGameStates(): void {
         // Fill entities
         this.entities = new Entities(100);
+        this.ai = new AI();
 
         // Create 2 test Aliens
         const alien1 = this.entities.spawn();
@@ -160,16 +160,6 @@ export class Game {
         alien2.x = 50;
         alien2.y = 50;
 
-    }
-
-    debouncedChangeOrientation(clockwise: boolean) {
-        // EXPERIMENTAL METHOD - WILL BE DELETED
-        if (this.changeOrientationTimer) {
-            clearTimeout(this.changeOrientationTimer);
-        }
-        this.changeOrientationTimer = setTimeout(() => {
-            this.changeOrientation(clockwise);
-        }, 60);
     }
 
     changeOrientation(clockwise: boolean) {
@@ -287,22 +277,17 @@ export class Game {
     checkKeys(): void {
         if (this.keysPressed['ArrowUp'] || this.keysPressed['w']) {
             // playerY -= playerSpeed * deltaTime;
-            console.log("up");
         }
         if (this.keysPressed['ArrowDown'] || this.keysPressed['s']) {
             // playerY += playerSpeed * deltaTime;
-            console.log("down");
         }
         if (this.keysPressed['ArrowLeft'] || this.keysPressed['a']) {
             // playerX -= playerSpeed * deltaTime;
-            // debouncedChangeOrientation(false);
-            console.log("left");
-
+            this.changeOrientation(false);
         }
         if (this.keysPressed['ArrowRight'] || this.keysPressed['d']) {
             // playerX += playerSpeed * deltaTime;
-            // debouncedChangeOrientation(true);
-            console.log("right");
+            this.changeOrientation(true);
         }
     }
 
@@ -344,8 +329,9 @@ export class Game {
     }
 
     tick(): void {
-        // Advance game states in renderables:
+        // Advance game states in pool:
         // from this.timeSoFar, by a this.timePerTick amount of time.
+        // meaning, from currentTick count, to the next one.
 
         // // Update game objects, handle input, etc.
         // this.frameTimer += deltaTime;
@@ -353,8 +339,25 @@ export class Game {
         //     this.frameTimer = 0;
         //     this.currentFrame = (this.currentFrame + 1) % this.frameCount;
         // }
-        // this.checkKeys();
+        let processed = 0;
+        let entity;
+        for (let i = 0; processed >= this.entities.active || i > this.entities.total; i++) {
+            entity = this.entities.pool[i];
+            if (entity.active) {
+                processed += 1;
+                this.ai.process(entity);
+            }
+        }
 
+        // for (let index = 0; index < array.length; index++) {
+        //     const element = array[index];
+
+        // }
+
+        this.checkKeys();
+
+        // Update currentTick count
+        this.currentTick += 1;
     }
 
     interpolate(min: Point, max: Point, fract: number): Point {
@@ -803,7 +806,7 @@ export class Entities {
 
     public total: number;
     public active: number = 0;
-    private pool: Array<TEntity> = [];
+    public pool: Array<TEntity> = [];
     private lastId = 0;
 
     constructor(initialPoolSize: number) {
@@ -851,6 +854,20 @@ export class Entities {
     remove(entity: TEntity): void {
         this.active--;
         entity.active = false;
+    }
+
+
+}
+export class AI {
+
+    public myVar = 0;
+
+    constructor() {
+        //
+    }
+
+    public process(entity: TEntity): void {
+        //
     }
 
 
