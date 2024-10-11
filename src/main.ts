@@ -1,6 +1,14 @@
 import * as Constants from "./constants";
 import { Point, M3x3 } from "./maths";
-import { RenderableLayers, TEntity, TParameters } from "./type";
+import { Renderable, RenderableLayers, TEntity, TParameters } from "./type";
+
+const frameWidth = 64; // Width of a single frame in the sprite sheet
+const frameHeight = 64; // Height of a single frame
+
+const ORIENTATIONS_PER_ROW = 4; // Number of 1024x1024 sheets per row in the 4096x4096 grid (4)
+const SPRITES_PER_ROW = 1024 / frameWidth; // Number of sprites per row (16)
+const SHEET_SIZE = 1024; // Size of each 1024x1024 sheet in pixels
+
 
 document.addEventListener('DOMContentLoaded', (event) => {
     if (!window.game) {
@@ -161,13 +169,13 @@ export class Game {
         const alien1 = this.entities.spawn();
         alien1.type = 1;
         alien1.hitPoints = 100;
-        alien1.x = 10;
-        alien1.y = 10;
+        alien1.x = 32;
+        alien1.y = 32;
         const alien2 = this.entities.spawn();
         alien2.type = 1;
         alien2.hitPoints = 100;
-        alien2.x = 50;
-        alien2.y = 50;
+        alien2.x = 64;
+        alien2.y = 64;
 
     }
 
@@ -185,31 +193,77 @@ export class Game {
         }
     }
 
+    // Function to get the x-coordinate of a sprite
+    public getSpriteX(index: number, orientation: number): number {
+        // const orientationX = (orientation % 4) * 1024;
+        // const spriteX = (index % 16) * 64;
+        const orientationX = (orientation % ORIENTATIONS_PER_ROW) * SHEET_SIZE;
+        const spriteX = (index % SPRITES_PER_ROW) * frameWidth;
+        return orientationX + spriteX;
+    }
+
+    // Function to get the y-coordinate of a sprite
+    public getSpriteY(index: number, orientation: number): number {
+        // const orientationY = orientation * 256;
+        // const spriteY = index * 4;
+        const orientationY = Math.floor(orientation / ORIENTATIONS_PER_ROW) * SHEET_SIZE;
+        const spriteY = Math.floor(index / SPRITES_PER_ROW) * frameHeight;
+        return orientationY + spriteY;
+    }
+
     gatherRenderables(): void {
+
+        let processed = 0;
+        let entity;
+
+        const aliens: Renderable[] = [];
+        for (let i = 0; processed < this.entities.active || i < this.entities.total; i++) {
+            entity = this.entities.pool[i];
+            if (entity.active) {
+                processed += 1;
+                aliens.push(
+                    {
+                        sprite: "alien",
+                        position: { x: entity.x, y: entity.y },
+                        oldPosition: { x: entity.x, y: entity.y },
+                        // frame: { x: 0, y: 0 },
+                        frame: {
+                            x: this.getSpriteX(entity.frameIndex, entity.orientation),
+                            y: this.getSpriteY(entity.frameIndex, entity.orientation)
+                        },
+                        flip: false,
+                        blendmode: Game.BLENDMODE_ALPHA,
+                        options: {}
+                    }
+                );
+            }
+        }
+
         this.renderables = {
             layers: [
                 {
                     blendmode: Game.BLENDMODE_ALPHA,
-                    objs: [
-                        {
-                            sprite: "alien",
-                            position: { x: 32, y: 32 },
-                            oldPosition: { x: 32, y: 32 },
-                            frame: { x: 0, y: 0 },
-                            flip: false,
-                            blendmode: Game.BLENDMODE_ALPHA,
-                            options: {}
-                        },
-                        {
-                            sprite: "alien",
-                            position: { x: 64, y: 64 },
-                            oldPosition: { x: 64, y: 64 },
-                            frame: { x: 0, y: 0 },
-                            flip: false,
-                            blendmode: Game.BLENDMODE_ALPHA,
-                            options: {}
-                        }
-                    ]
+                    objs: aliens,
+                    // objs: [
+                    //     {
+                    //         sprite: "alien",
+                    //         position: { x: 32, y: 32 },
+                    //         oldPosition: { x: 32, y: 32 },
+                    //         frame: { x: 0, y: 0 },
+                    //         flip: false,
+                    //         blendmode: Game.BLENDMODE_ALPHA,
+                    //         options: {}
+                    //     },
+                    //     {
+                    //         sprite: "alien",
+                    //         position: { x: 64, y: 64 },
+                    //         oldPosition: { x: 64, y: 64 },
+                    //         frame: { x: 0, y: 0 },
+                    //         flip: false,
+                    //         blendmode: Game.BLENDMODE_ALPHA,
+                    //         options: {}
+                    //     }
+                    // ]
                 },
                 {
                     blendmode: Game.BLENDMODE_MULTIPLY,
@@ -344,7 +398,7 @@ export class Game {
 
         let processed = 0;
         let entity;
-        for (let i = 0; processed >= this.entities.active || i > this.entities.total; i++) {
+        for (let i = 0; processed < this.entities.active || i < this.entities.total; i++) {
             entity = this.entities.pool[i];
             if (entity.active) {
                 processed += 1;
