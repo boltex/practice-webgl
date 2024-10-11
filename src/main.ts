@@ -53,7 +53,7 @@ export class Game {
     public keysPressed: Record<string, any> = {};
 
     // Test Orientation
-    public orientation = 0;
+    public testSpriteOrientation = 0;
 
     // FPS counter
     public lastTime = 0;
@@ -89,6 +89,15 @@ export class Game {
         this.gl.enable(this.gl.BLEND);
 
         document.body.appendChild(this.canvasElement);
+
+        // Add event listeners for key presses
+        document.addEventListener('keydown', (e) => {
+            this.keysPressed[e.key] = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            this.keysPressed[e.key] = false;
+        });
 
         // Create the start button
         const startButton = document.createElement("button");
@@ -146,7 +155,7 @@ export class Game {
     initGameStates(): void {
         // Fill entities
         this.entities = new Entities(100);
-        this.ai = new AI();
+        this.ai = new AI(this);
 
         // Create 2 test Aliens
         const alien1 = this.entities.spawn();
@@ -165,14 +174,14 @@ export class Game {
     changeOrientation(clockwise: boolean) {
         // EXPERIMENTAL METHOD - WILL BE DELETED
         if (clockwise) {
-            this.orientation = this.orientation + 1;
+            this.testSpriteOrientation = this.testSpriteOrientation + 1;
         } else {
-            this.orientation = this.orientation - 1;
+            this.testSpriteOrientation = this.testSpriteOrientation - 1;
         }
-        if (this.orientation > 15) {
-            this.orientation = 0;
-        } else if (this.orientation < 0) {
-            this.orientation = 15;
+        if (this.testSpriteOrientation > 15) {
+            this.testSpriteOrientation = 0;
+        } else if (this.testSpriteOrientation < 0) {
+            this.testSpriteOrientation = 15;
         }
     }
 
@@ -333,12 +342,6 @@ export class Game {
         // from this.timeSoFar, by a this.timePerTick amount of time.
         // meaning, from currentTick count, to the next one.
 
-        // // Update game objects, handle input, etc.
-        // this.frameTimer += deltaTime;
-        // if (this.frameTimer > this.frameInterval) {
-        //     this.frameTimer = 0;
-        //     this.currentFrame = (this.currentFrame + 1) % this.frameCount;
-        // }
         let processed = 0;
         let entity;
         for (let i = 0; processed >= this.entities.active || i > this.entities.total; i++) {
@@ -348,11 +351,6 @@ export class Game {
                 this.ai.process(entity);
             }
         }
-
-        // for (let index = 0; index < array.length; index++) {
-        //     const element = array[index];
-
-        // }
 
         this.checkKeys();
 
@@ -860,14 +858,29 @@ export class Entities {
 }
 export class AI {
 
-    public myVar = 0;
+    public game: Game;
 
-    constructor() {
-        //
+    constructor(game: Game) {
+        this.game = game;
     }
 
     public process(entity: TEntity): void {
-        //
+        switch (entity.type) {
+            case 1:
+                this.alien(entity)
+                break;
+
+            default:
+                break;
+        }
+    }
+
+    private alien(entity: TEntity): void {
+        // test just move forward in animations
+        // 249 is the number of frames in the sprite sheet
+        entity.frameIndex = (entity.frameIndex + 1) % 249;
+        entity.orientation = this.game.testSpriteOrientation;
+        // TODO : Add more behaviors!
     }
 
 
