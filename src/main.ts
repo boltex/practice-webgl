@@ -2,14 +2,6 @@ import * as Constants from "./constants";
 import { Point, M3x3 } from "./maths";
 import { Renderable, RenderableLayers, TEntity, TParameters } from "./type";
 
-const frameWidth = 64; // Width of a single frame in the sprite sheet
-const frameHeight = 64; // Height of a single frame
-
-const ORIENTATIONS_PER_ROW = 4; // Number of 1024x1024 sheets per row in the 4096x4096 grid (4)
-const SPRITES_PER_ROW = 1024 / frameWidth; // Number of sprites per row (16)
-const SHEET_SIZE = 1024; // Size of each 1024x1024 sheet in pixels
-
-
 document.addEventListener('DOMContentLoaded', (event) => {
     if (!window.game) {
         window.game = new Game();
@@ -195,19 +187,15 @@ export class Game {
 
     // Function to get the x-coordinate of a sprite
     public getSpriteX(index: number, orientation: number): number {
-        // const orientationX = (orientation % 4) * 1024;
-        // const spriteX = (index % 16) * 64;
-        const orientationX = (orientation % ORIENTATIONS_PER_ROW) * SHEET_SIZE;
-        const spriteX = (index % SPRITES_PER_ROW) * frameWidth;
+        const orientationX = (orientation % 4) * 16;
+        const spriteX = (index % 16);
         return orientationX + spriteX;
     }
 
     // Function to get the y-coordinate of a sprite
     public getSpriteY(index: number, orientation: number): number {
-        // const orientationY = orientation * 256;
-        // const spriteY = index * 4;
-        const orientationY = Math.floor(orientation / ORIENTATIONS_PER_ROW) * SHEET_SIZE;
-        const spriteY = Math.floor(index / SPRITES_PER_ROW) * frameHeight;
+        const orientationY = Math.floor(orientation / 4) * 16;
+        const spriteY = Math.floor(index / 16);
         return orientationY + spriteY;
     }
 
@@ -226,7 +214,6 @@ export class Game {
                         sprite: "alien",
                         position: { x: entity.x, y: entity.y },
                         oldPosition: { x: entity.x, y: entity.y },
-                        // frame: { x: 0, y: 0 },
                         frame: {
                             x: this.getSpriteX(entity.frameIndex, entity.orientation),
                             y: this.getSpriteY(entity.frameIndex, entity.orientation)
@@ -244,26 +231,6 @@ export class Game {
                 {
                     blendmode: Game.BLENDMODE_ALPHA,
                     objs: aliens,
-                    // objs: [
-                    //     {
-                    //         sprite: "alien",
-                    //         position: { x: 32, y: 32 },
-                    //         oldPosition: { x: 32, y: 32 },
-                    //         frame: { x: 0, y: 0 },
-                    //         flip: false,
-                    //         blendmode: Game.BLENDMODE_ALPHA,
-                    //         options: {}
-                    //     },
-                    //     {
-                    //         sprite: "alien",
-                    //         position: { x: 64, y: 64 },
-                    //         oldPosition: { x: 64, y: 64 },
-                    //         frame: { x: 0, y: 0 },
-                    //         flip: false,
-                    //         blendmode: Game.BLENDMODE_ALPHA,
-                    //         options: {}
-                    //     }
-                    // ]
                 },
                 {
                     blendmode: Game.BLENDMODE_MULTIPLY,
