@@ -52,7 +52,69 @@ export class Game {
     // Key press state
     public keysPressed: Record<string, any> = {};
 
-    // Test Orientation
+    // Game Map
+    public gamemap: number[] = [];
+
+    // Screen States
+    public screenx = 800
+    public screeny = 600
+
+    public selecting: boolean = false;
+    public selx = 0 // Started selection at specific coords
+    public sely = 0
+
+    public scrollx = 0 // Current scroll position 
+    public scrolly = 0
+
+    public SCROLLSPEED = 50   // speed in pixels for scrolling
+    public SCROLLBORDER = 5   // pixels from screen to trigger scrolling
+    public xscr_e = this.screenx - this.SCROLLBORDER // constants for finding trigger zone
+    public yscr_e = this.screeny - this.SCROLLBORDER
+
+    public tilebmpsize = 1024  // size of a bitmap of tiles
+    public tilesize = 128      // size of an individual square TILE 
+    public tileratio = this.tilebmpsize / this.tilesize
+    public initrangex = (this.screenx / this.tilesize) + 1
+    public initrangey = (this.screeny / this.tilesize) + 1
+
+    public gamemapw = 9 // game map width in TILES 
+    public gamemaph = 9
+    public maxmapx = (this.gamemapw * this.tilesize) - 1
+    public maxmapy = (this.gamemaph * this.tilesize) - 1
+    public maxscrollx = 1 + this.maxmapx - this.screenx
+    public maxscrolly = 1 + this.maxmapy - this.screeny
+
+    public scrollnowx = 0 // Scroll amount to be applied to scroll when processing
+    public scrollnowy = 0
+
+    public curx = 0 // Current mouse position
+    public cury = 0
+
+    public gamestate = 0   // 0=SPLASH
+    // 1=Lobby (main menu)
+    // 2=game Lobby
+    // 3=play Loop
+    // 4=Game over/stats
+    // 5=EDITION ANIMS
+    // 6=EDITION MAP
+    // 7=OPTIONS
+
+    public gameaction = 0    // 0=none
+    public DEFAULTACTION = 1 // game actions CONSTANTS, zero means none
+    public RELEASESEL = 2
+
+    public gamecurx = 0
+    public gamecury = 0
+    public gameselx = 0
+    public gamesely = 0
+
+    // Test Cursor vatiables
+    public curanim = 0
+    public curanimtotal = 6
+    public curanimx = 0
+    public curanimy = 0
+
+    // Test Orientation vatiable
     public testSpriteOrientation = 0;
 
     // FPS counter
@@ -66,8 +128,6 @@ export class Game {
     public currentTick = 0;
     public timePerTick = 125; // dt in ms (125 is 8 per second)
     public timerTriggerAccum = this.timePerTick * 3; // 3 times the timePerTick
-
-    // public testFrameCount = 249; // Number of frames in the sprite sheet
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -169,6 +229,20 @@ export class Game {
         alien2.x = 64;
         alien2.y = 64;
 
+        // Build Map 
+        // TEST temp map 9 by 9 tiles 
+        for (let temp1 = 0; temp1 < 8; temp1++) { // start with 8 ROW 
+            this.gamemap.push(temp1 * 8); // added row total 1 width COLUMN
+            for (let temp2 = 0; temp2 < 8; temp2++) {  // + 8 COLUMN
+                this.gamemap.push(temp2 + temp1 * 8); // here total 9 width COLUMN
+            }
+        }
+
+        // Proof CHANGE THOSE GAMEMAPS TO PROVE THEY ARE TILES
+        this.gamemap[21] = 3;
+        for (let temp = 0; temp < 9; temp++) { // add last row of 9 ROW
+            this.gamemap.push(temp + 56);
+        }
     }
 
     changeOrientation(clockwise: boolean) {
@@ -228,11 +302,27 @@ export class Game {
 
         this.renderables = {
             layers: [
+
+                //  TODO ---------------- BACKGROUND TEXTURE LAYER
+                // {
+                //     blendmode: Game.BLENDMODE_ALPHA,
+                //     objs: backgroundTiles,
+                // },
+
+                // TODO --------------------------- BLOOD DEBRIS STAINS
+
+                // TODO  --------------------------- SELECTION WIDGETS
+
                 {
+                    // --------------------------- ALIEN TEXTURE LAYER
                     blendmode: Game.BLENDMODE_ALPHA,
                     objs: aliens,
                 },
+
+                // TODO --------------------------- LIGHTING
+
                 {
+                    // --------------------------- FOG OF WAR
                     blendmode: Game.BLENDMODE_MULTIPLY,
                     objs: [
                         {
@@ -258,6 +348,14 @@ export class Game {
                         }
                     ]
                 },
+
+                // TODO ------- SELECTION SQUARE 
+                // see drawselection()
+
+                // TODO -------------------------- GUI
+
+                // TODO -------------------------- MINIMAP       
+
             ]
         }
     }
@@ -321,12 +419,53 @@ export class Game {
         }
     }
 
+    public procgame(): void {
+
+        if (this.gameaction) {
+
+            switch (this.gameaction) {
+                case this.DEFAULTACTION:
+                    this.trydefault()
+                    break;
+                case this.RELEASESEL:
+                    this.tryselect()
+                    break;
+
+                default:
+                    break;
+            }
+
+        }
+
+        this.gameaction = 0 // -------------- no more game actions to do
+
+        // scroll if not selected    
+        if (!this.selecting) {
+            this.scrollx += this.scrollnowx;
+            this.scrolly += this.scrollnowy;
+            if (this.scrollx > this.maxscrollx) {
+                this.scrollx = this.maxscrollx;
+            }
+            if (this.scrollx < 0) {
+                this.scrollx = 0;
+            }
+            if (this.scrolly > this.maxscrolly) {
+                this.scrolly = this.maxscrolly;
+            }
+            if (this.scrolly < 0) {
+                this.scrolly = 0;
+            }
+        }
+    }
+
     update(timestamp: number, skipRender?: boolean): void {
 
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
         this.accumulator += deltaTime;
+
+        this.procgame();
 
         while (this.accumulator >= this.timePerTick) {
             this.tick();
@@ -362,6 +501,15 @@ export class Game {
         // Advance game states in pool:
         // from this.timeSoFar, by a this.timePerTick amount of time.
         // meaning, from currentTick count, to the next one.
+
+        // #########################################
+        // TEST change cursor anim  
+        if (this.curanim) {
+            this.curanim += 1;
+            if (this.curanim > this.curanimtotal)
+                this.curanim = 0
+        }
+        // #########################################
 
         let processed = 0;
         let entity;
@@ -410,6 +558,26 @@ export class Game {
         this.finalBuffer.render();
 
         this.gl.flush();
+    }
+
+    public drawselection(): void {
+        //
+        // glVertex2i(selx,sely)
+        // glVertex2i(selx,cury)
+        // glVertex2i(curx,cury)
+        // glVertex2i(curx,sely)
+    }
+
+    public trydefault(): void {
+        // TODO : Replace with real default action
+        // TEST CURSOR ANIMATION ON DEFAULT ACTION
+        this.curanim = 1;
+        this.curanimx = this.gamecurx - 32;
+        this.curanimy = this.gamecury - 32;
+    }
+
+    public tryselect(): void {
+        // 
     }
 
 }
