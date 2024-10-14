@@ -32,10 +32,20 @@ function loop(timestamp: number): void {
 export class Game {
 
     public started = false;
+    public optionsVisible = false;
+    public optionsAspectRatio = 0; // 0 = 4:3, 1 = 16:9
+    public aspectRatio = 4 / 3;
+    // 4:3 = 960 x 720 
+    // 16:9 = 1280 x 720
+
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
     public ctx!: any;
 
+    public finalBuffer16x9: BackBuffer;
+    public finalBuffer4x3: BackBuffer;
+    public backBuffer16x9: BackBuffer;
+    public backBuffer4x3: BackBuffer;
     public finalBuffer: BackBuffer;
     public backBuffer: BackBuffer;
     public sprites: Record<string, Sprite>;
@@ -56,36 +66,36 @@ export class Game {
     public gamemap: number[] = [];
 
     // Screen States
-    public screenx = 800
-    public screeny = 600
+    public screenx = 960;
+    public screeny = 720;
 
     public selecting: boolean = false;
-    public selx = 0 // Started selection at specific coords
-    public sely = 0
+    public selx = 0; // Started selection at specific coords
+    public sely = 0;
 
-    public scrollx = 0 // Current scroll position 
-    public scrolly = 0
+    public scrollx = 0; // Current scroll position 
+    public scrolly = 0;
 
-    public SCROLLSPEED = 50   // speed in pixels for scrolling
-    public SCROLLBORDER = 5   // pixels from screen to trigger scrolling
-    public xscr_e = this.screenx - this.SCROLLBORDER // constants for finding trigger zone
-    public yscr_e = this.screeny - this.SCROLLBORDER
+    public SCROLLSPEED = 50;   // speed in pixels for scrolling
+    public SCROLLBORDER = 5;   // pixels from screen to trigger scrolling
+    public xscr_e = this.screenx - this.SCROLLBORDER; // constants for finding trigger zone
+    public yscr_e = this.screeny - this.SCROLLBORDER;
 
-    public tilebmpsize = 1024  // size of a bitmap of tiles
-    public tilesize = 128      // size of an individual square TILE 
-    public tileratio = this.tilebmpsize / this.tilesize
-    public initrangex = (this.screenx / this.tilesize) + 1
-    public initrangey = (this.screeny / this.tilesize) + 1
+    public tilebmpsize = 1024;  // size of a bitmap of tiles
+    public tilesize = 128;      // size of an individual square TILE 
+    public tileratio = this.tilebmpsize / this.tilesize;
+    public initrangex = (this.screenx / this.tilesize) + 1;
+    public initrangey = (this.screeny / this.tilesize) + 1;
 
-    public gamemapw = 9 // game map width in TILES 
-    public gamemaph = 9
-    public maxmapx = (this.gamemapw * this.tilesize) - 1
-    public maxmapy = (this.gamemaph * this.tilesize) - 1
-    public maxscrollx = 1 + this.maxmapx - this.screenx
-    public maxscrolly = 1 + this.maxmapy - this.screeny
+    public gamemapw = 9; // game map width in TILES 
+    public gamemaph = 9;
+    public maxmapx = (this.gamemapw * this.tilesize) - 1;
+    public maxmapy = (this.gamemaph * this.tilesize) - 1;
+    public maxscrollx = 1 + this.maxmapx - this.screenx;
+    public maxscrolly = 1 + this.maxmapy - this.screeny;
 
-    public scrollnowx = 0 // Scroll amount to be applied to scroll when processing
-    public scrollnowy = 0
+    public scrollnowx = 0; // Scroll amount to be applied to scroll when processing
+    public scrollnowy = 0;
 
     public curx = 0 // Current mouse position
     public cury = 0
@@ -139,8 +149,8 @@ export class Game {
         console.log('Init WebGL2 Game !');
 
         this.canvasElement = document.createElement("canvas");
-        this.canvasElement.width = Constants.SCREEN_WIDTH;
-        this.canvasElement.height = Constants.SCREEN_HEIGHT;
+        this.canvasElement.width = this.screenx;
+        this.canvasElement.height = this.screeny;
 
         this.worldSpaceMatrix = new M3x3();
 
@@ -170,9 +180,7 @@ export class Game {
         startButton.style.fontSize = "18px";
         document.body.appendChild(startButton);
         startButton.addEventListener("click", () => {
-            // Start the game only after button is clicked
             console.log('Starting the game!');
-            // Hide and remove the button
             startButton.style.display = 'none';
             document.body.style.cursor = 'none';
             this.started = true;
@@ -181,8 +189,20 @@ export class Game {
             loop(0);
         });
 
-        this.backBuffer = new BackBuffer(this.gl, { width: 512, height: 240 });
-        this.finalBuffer = new BackBuffer(this.gl, { width: 512, height: 240 });
+        this.backBuffer16x9 = new BackBuffer(this.gl, { width: 1280, height: 720 });
+        this.backBuffer4x3 = new BackBuffer(this.gl, { width: 960, height: 720 });
+        this.finalBuffer16x9 = new BackBuffer(this.gl, { width: 1280, height: 720 });
+        this.finalBuffer4x3 = new BackBuffer(this.gl, { width: 960, height: 720 });
+
+        if (this.optionsAspectRatio === 0) {
+            // 4:3
+            this.backBuffer = this.backBuffer4x3
+            this.finalBuffer = this.finalBuffer4x3;
+        } else {
+            // 16:9
+            this.backBuffer = this.backBuffer16x9
+            this.finalBuffer = this.finalBuffer16x9
+        }
 
         this.sprites = {
             "alien": new Sprite(
@@ -362,22 +382,38 @@ export class Game {
 
     resize(w: number, h: number, noDebounce?: boolean): void {
         if (noDebounce) {
-            this.canvasElement.width = w;
-            this.canvasElement.height = h;
-            const wRatio = w / (h / Constants.GAME_HEIGHT);
-            this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
+            this.calculateResize(w, h);
         } else {
-            // Debounced resize
             if (this._resizeTimer) {
                 clearTimeout(this._resizeTimer);
             }
             this._resizeTimer = setTimeout(() => {
-                this.canvasElement.width = w;
-                this.canvasElement.height = h;
-                const wRatio = w / (h / Constants.GAME_HEIGHT);
-                this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
+                this.calculateResize(w, h); // Debounced
             }, 100);
         }
+    }
+
+    public calculateResize(w: number, h: number): void {
+
+        let newWidth, newHeight;
+
+        // Calculate the dimensions maintaining the aspect ratio
+        if (w / h < this.aspectRatio) {
+            // Width is the limiting factor
+            newWidth = w;
+            newHeight = newWidth / this.aspectRatio;
+        } else {
+            // Height is the limiting factor
+            newHeight = h;
+            newWidth = newHeight * this.aspectRatio;
+        }
+
+        // Set canvas dimensions
+        this.canvasElement.width = newWidth;
+        this.canvasElement.height = newHeight;
+
+        const wRatio = newWidth / (newHeight / Constants.GAME_HEIGHT);
+        this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
     }
 
     setBuffer(buffer?: BackBuffer): void {

@@ -1,7 +1,5 @@
-export const SCREEN_WIDTH = 800;
-export const SCREEN_HEIGHT = 600;
 export const SPRITE_SIZE = 32;
-export const GAME_HEIGHT = 240;
+export const GAME_HEIGHT = 720;
 
 export const vertexShaderSource = /*glsl*/ `
     attribute vec2 a_position;
