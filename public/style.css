@@ -1,5 +1,5 @@
-body,
-html {
+html,
+body {
   margin: 0;
   padding: 0;
   width: 100%;
@@ -7,7 +7,7 @@ html {
   display: flex;
   justify-content: center;
   align-items: center;
-  /* background-color: #000; */
+  background-color: #000;
   overflow: hidden;
   user-select: none;
   /* cursor: none; */
@@ -15,7 +15,7 @@ html {
 
 canvas {
   /* border: 1px solid #000; */
-  background-color: #000;
+  background-color: #111;
   /* width: 800px; */
   /* height: 600px; */
   /* width: 100%; */

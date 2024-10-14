@@ -32,6 +32,7 @@ function loop(timestamp: number): void {
 export class Game {
 
     public started = false;
+    public canvasRect: DOMRect;
     public optionsVisible = false;
     public optionsAspectRatio = 0; // 0 = 4:3, 1 = 16:9
     public aspectRatio = 4 / 3;
@@ -40,7 +41,6 @@ export class Game {
 
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
-    public ctx!: any;
 
     public finalBuffer16x9: BackBuffer;
     public finalBuffer4x3: BackBuffer;
@@ -66,7 +66,7 @@ export class Game {
     public gamemap: number[] = [];
 
     // Screen States
-    public screenx = 960;
+    public screenx = 960; // or 1280
     public screeny = 720;
 
     public selecting: boolean = false;
@@ -151,6 +151,7 @@ export class Game {
         this.canvasElement = document.createElement("canvas");
         this.canvasElement.width = this.screenx;
         this.canvasElement.height = this.screeny;
+        this.canvasRect = this.canvasElement.getBoundingClientRect();
 
         this.worldSpaceMatrix = new M3x3();
 
@@ -159,15 +160,6 @@ export class Game {
         this.gl.enable(this.gl.BLEND);
 
         document.body.appendChild(this.canvasElement);
-
-        // Add event listeners for key presses
-        document.addEventListener('keydown', (e) => {
-            this.keysPressed[e.key] = true;
-        });
-
-        document.addEventListener('keyup', (e) => {
-            this.keysPressed[e.key] = false;
-        });
 
         // Create the start button
         const startButton = document.createElement("button");
@@ -181,6 +173,23 @@ export class Game {
         document.body.appendChild(startButton);
         startButton.addEventListener("click", () => {
             console.log('Starting the game!');
+
+            document.addEventListener('keydown', (e) => {
+                this.keysPressed[e.key] = true;
+            });
+            document.addEventListener('keyup', (e) => {
+                this.keysPressed[e.key] = false;
+            });
+            this.canvasElement.addEventListener("mousemove", (event) => {
+                this.mouseMove(event);
+            });
+            this.canvasElement.addEventListener("mousedown", (event) => {
+                this.mouseDown(event);
+            });
+            this.canvasElement.addEventListener("mouseup", (event) => {
+                this.mouseUp(event);
+            });
+
             startButton.style.display = 'none';
             document.body.style.cursor = 'none';
             this.started = true;
@@ -411,6 +420,7 @@ export class Game {
         // Set canvas dimensions
         this.canvasElement.width = newWidth;
         this.canvasElement.height = newHeight;
+        this.canvasRect = this.canvasElement.getBoundingClientRect();
 
         const wRatio = newWidth / (newHeight / Constants.GAME_HEIGHT);
         this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
@@ -614,6 +624,93 @@ export class Game {
 
     public tryselect(): void {
         // 
+    }
+
+    public mouseDown(event: MouseEvent): void {
+        switch (event.button) {
+            case 0:
+                console.log("Left mouse button pressed");
+                break;
+            case 1:
+                console.log("Middle mouse button pressed");
+                break;
+            case 2:
+                console.log("Right mouse button pressed");
+                break;
+            default:
+                console.log("Unknown mouse button pressed");
+        }
+        const x = event.clientX - this.canvasRect.left; // TODO FIX SCALE !
+        const y = event.clientY - this.canvasRect.top; // TODO FIX SCALE !
+        this.curx = x;
+        this.cury = y;
+        this.gamecurx = x + this.scrollx;
+        this.gamecury = y + this.scrolly;
+        if (!this.selecting) {
+            if (event.button == 0) {
+                this.selecting = true;
+                this.selx = x;
+                this.sely = y;
+            }
+            if (event.button == 2) {
+                this.gameaction = this.DEFAULTACTION;
+            }
+        }
+    }
+
+    public mouseUp(event: MouseEvent): void {
+        switch (event.button) {
+            case 0:
+                console.log("Left mouse button released");
+                break;
+            case 1:
+                console.log("Middle mouse button released");
+                break;
+            case 2:
+                console.log("Right mouse button released");
+                break;
+            default:
+                console.log("Unknown mouse button released");
+        }
+        const x = event.clientX - this.canvasRect.left; // TODO FIX SCALE !
+        const y = event.clientY - this.canvasRect.top; // TODO FIX SCALE !
+        this.curx = x;
+        this.cury = y;
+        this.gameselx = this.selx + this.scrollx;
+        this.gamesely = this.sely + this.scrolly;
+        this.gamecurx = x + this.scrollx;
+        this.gamecury = y + this.scrolly;
+        if (event.button == 0) {
+            this.selecting = false;
+            this.gameaction = this.RELEASESEL;
+        }
+    }
+
+    public mouseMove(event: MouseEvent): void {
+        // Use the cached value of rect for calculations
+        const x = event.clientX - this.canvasRect.left; // TODO FIX SCALE !
+        const y = event.clientY - this.canvasRect.top; // TODO FIX SCALE !
+        console.log(`Mouse X: ${x}, Mouse Y: ${y}`);
+        this.curx = x;
+        this.cury = y;
+        this.scrollnowx = 0;
+        this.scrollnowy = 0;
+        if (x > this.xscr_e) {
+            this.scrollnowx = this.SCROLLSPEED;
+        }
+        if (y > this.yscr_e) {
+            this.scrollnowy = this.SCROLLSPEED;
+        }
+        if (x < this.SCROLLBORDER) {
+            this.scrollnowx = -this.SCROLLSPEED;
+        }
+        if (y < this.SCROLLBORDER) {
+            this.scrollnowy = -this.SCROLLSPEED;
+        }
+    }
+
+    public test(): void {
+        console.log('This is a test');
     }
 
 }
