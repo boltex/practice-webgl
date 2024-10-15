@@ -155,8 +155,11 @@ export class Game {
 
         this.worldSpaceMatrix = new M3x3();
 
-        this.gl = this.canvasElement.getContext('webgl2')!;
-        this.gl.clearColor(0.4, 0.6, 1.0, 1.0);
+        this.gl = this.canvasElement.getContext('webgl2', {
+            antialias: false,
+            alpha: false,
+            depth: false,
+        })!;
         this.gl.enable(this.gl.BLEND);
 
         document.body.appendChild(this.canvasElement);
@@ -191,7 +194,7 @@ export class Game {
             });
 
             startButton.style.display = 'none';
-            document.body.style.cursor = 'none';
+            document.body.style.cursor = 'none'; // ! HIDE NATIVE CURSOR !
             this.started = true;
             // Setup timer in case RAF Skipped when not in foreground or minimized.
             setInterval(() => { this.checkUpdate(); }, 500);
@@ -224,16 +227,37 @@ export class Game {
                     height: 64,
                 }
             ),
-            "halo": new Sprite(this.gl, "images/halo.png", Constants.vertexShaderSource,
-                Constants.fragmentShaderSource, {
-                width: 256,
-                height: 256,
-            }),
-            "white": new Sprite(this.gl, "images/white.png", Constants.vertexShaderSource,
-                Constants.fragmentShaderSource, {
-                width: 1,
-                height: 1,
-            })
+            "background": new Sprite(
+                this.gl,
+                "images/plancher2.png",
+                Constants.vertexShaderSource,
+                Constants.fragmentShaderSource,
+                {
+                    width: this.tilesize,
+                    height: this.tilesize,
+                }
+            ),
+            "white": new Sprite(
+                this.gl,
+                "images/white.png",
+                Constants.vertexShaderSource,
+                Constants.fragmentShaderSource,
+                {
+                    width: 1,
+                    height: 1,
+                }
+            ),
+            // TEST LIGHTING EXPERIMENT FROM https://github.com/jamesrehabstudio
+            "halo": new Sprite(
+                this.gl,
+                "images/halo.png",
+                Constants.vertexShaderSource,
+                Constants.fragmentShaderSource,
+                {
+                    width: 256,
+                    height: 256,
+                }
+            ),
 
         };
 
@@ -246,17 +270,22 @@ export class Game {
         this.entities = new Entities(100);
         this.ai = new AI(this);
 
-        // Create 2 test Aliens
+        // Create 3 test Aliens
         const alien1 = this.entities.spawn();
         alien1.type = 1;
         alien1.hitPoints = 100;
-        alien1.x = 32;
-        alien1.y = 32;
+        alien1.x = 515;
+        alien1.y = 100;
         const alien2 = this.entities.spawn();
         alien2.type = 1;
         alien2.hitPoints = 100;
-        alien2.x = 64;
-        alien2.y = 64;
+        alien2.x = 32;
+        alien2.y = 32;
+        const alien3 = this.entities.spawn();
+        alien3.type = 1;
+        alien3.hitPoints = 100;
+        alien3.x = 38;
+        alien3.y = 45;
 
         // Build Map 
         // TEST temp map 9 by 9 tiles 
@@ -329,10 +358,102 @@ export class Game {
             }
         }
 
+        const cursor: Renderable[] = [];
+        cursor.push(
+            {
+                sprite: "alien",
+                position: { x: this.curx - 32, y: this.cury - 32 },
+                oldPosition: { x: this.curx - 32, y: this.cury - 32 },
+                frame: { x: this.selecting ? 26 : 29, y: 15 },
+                flip: false,
+                blendmode: Game.BLENDMODE_ALPHA,
+                options: {}
+            }
+        );
+        if (this.selecting) {
+            // Draw selection rectangle with lines
+            const cx1 = Math.min(this.selx, this.curx);
+            const cx2 = Math.max(this.selx, this.curx);
+            const cy1 = Math.min(this.sely, this.cury);
+            const cy2 = Math.max(this.sely, this.cury);
+
+            cursor.push(
+                {
+                    sprite: "white", // top horizontal
+                    position: { x: cx1, y: cy1 },
+                    oldPosition: { x: cx1, y: cy1 },
+                    frame: { x: 0, y: 0 },
+                    flip: false,
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    options: {
+                        scalex: cx2 - cx1, scaley: 2,
+                        u_color: [0.0, 1.0, 0.0, 1]
+                    }
+                }
+            );
+            cursor.push(
+                {
+                    sprite: "white", // bottom horizontal
+                    position: { x: cx1, y: cy2 },
+                    oldPosition: { x: cx1, y: cy2 },
+                    frame: { x: 0, y: 0 },
+                    flip: false,
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    options: {
+                        scalex: cx2 - cx1, scaley: 2,
+                        u_color: [0.0, 1.0, 0.0, 1]
+                    }
+                }
+            );
+            cursor.push(
+                {
+                    sprite: "white", // left vertical
+                    position: { x: cx1, y: cy1 },
+                    oldPosition: { x: cx1, y: cy1 },
+                    frame: { x: 0, y: 0 },
+                    flip: false,
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    options: {
+                        scalex: 2, scaley: cy2 - cy1,
+                        u_color: [0.0, 1.0, 0.0, 1]
+                    }
+                }
+            );
+            cursor.push(
+                {
+                    sprite: "white", // right vertical
+                    position: { x: cx2, y: cy1 },
+                    oldPosition: { x: cx2, y: cy1 },
+                    frame: { x: 0, y: 0 },
+                    flip: false,
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    options: {
+                        scalex: 2, scaley: cy2 - cy1,
+                        u_color: [0.0, 1.0, 0.0, 1]
+                    }
+                }
+            );
+        }
+
         this.renderables = {
             layers: [
 
                 //  TODO ---------------- BACKGROUND TEXTURE LAYER
+
+                // backtex.enable()  #--------- BACKGROUND TEXTURE LAYER
+                // tileoffx = scrollx//tilesize
+                // tileoffy = scrolly//tilesize
+                // rangex = initrangex
+                // rangey = initrangey
+                // if scrollx%tilesize > tilesize - ( screenx %tilesize ):
+                //     rangex+=1
+                // if scrolly%tilesize > tilesize - ( screeny %tilesize ):
+                //     rangey+=1        
+                // for y in range(rangey):
+                //     for x in range(rangex):
+                //       q128in1024( gamemap[ (tileoffx+x) + ((tileoffy+y)*( gamemapw )) ], x*tilesize  -(scrollx%tilesize),y*tilesize  -(scrolly%tilesize))
+                // backtex.disable()
+
                 // {
                 //     blendmode: Game.BLENDMODE_ALPHA,
                 //     objs: backgroundTiles,
@@ -350,36 +471,49 @@ export class Game {
 
                 // TODO --------------------------- LIGHTING
 
+                // {
+                //     // --------------------------- FOG OF WAR
+                //     blendmode: Game.BLENDMODE_MULTIPLY,
+                //     objs: [
+                //         {
+                //             sprite: "white",
+                //             position: { x: 0, y: 0 },
+                //             oldPosition: { x: 0, y: 0 },
+                //             frame: { x: 0, y: 0 },
+                //             flip: false,
+                //             blendmode: Game.BLENDMODE_ALPHA,
+                //             options: {
+                //                 scalex: 512, scaley: 240,
+                //                 u_color: [0.5, 0.125, 0.25, 1]
+                //             }
+                //         },
+                //         {
+                //             sprite: "halo",
+                //             position: { x: 128, y: 80 },
+                //             oldPosition: { x: 128, y: 80 },
+                //             frame: { x: 0, y: 0 },
+                //             flip: false,
+                //             blendmode: Game.BLENDMODE_ADDITIVE,
+                //             options: {}
+                //         }
+                //     ]
+                // },
+
+
+                // {
+                //     // --------------------------- ALIEN TEXTURE LAYER
+                //     blendmode: Game.BLENDMODE_ALPHA,
+                //     objs: aliens,
+                // },
+
+
+                // TODO ------- CURSOR & SELECTION SQUARE 
                 {
-                    // --------------------------- FOG OF WAR
-                    blendmode: Game.BLENDMODE_MULTIPLY,
-                    objs: [
-                        {
-                            sprite: "white",
-                            position: { x: 0, y: 0 },
-                            oldPosition: { x: 0, y: 0 },
-                            frame: { x: 0, y: 0 },
-                            flip: false,
-                            blendmode: Game.BLENDMODE_ALPHA,
-                            options: {
-                                scalex: 512, scaley: 240,
-                                u_color: [0.5, 0.125, 0.25, 1]
-                            }
-                        },
-                        {
-                            sprite: "halo",
-                            position: { x: 128, y: 80 },
-                            oldPosition: { x: 128, y: 80 },
-                            frame: { x: 0, y: 0 },
-                            flip: false,
-                            blendmode: Game.BLENDMODE_ADDITIVE,
-                            options: {}
-                        }
-                    ]
+                    // --------------------------- ALIEN TEXTURE LAYER
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    objs: cursor,
                 },
 
-                // TODO ------- SELECTION SQUARE 
-                // see drawselection()
 
                 // TODO -------------------------- GUI
 
@@ -578,11 +712,22 @@ export class Game {
     }
 
     render(interpolation: number): void {
+
+        // Clear back-buffer and render onto the back-buffer,
+        // adding it to final-buffer, for each layer in rendertables.
+
+        // Clear finalBuffer to remove last frame rendered
+        this.gl.clearColor(0.0, 0.0, 0.0, 1.0); // Set base buffer color to black 
+        this.setBuffer(this.finalBuffer);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+
+        this.gl.clearColor(0.0, 0.0, 0.0, 0.0); // Set base buffer color to black fully transparent
+
         for (let l = 0; l < this.renderables.layers.length; l++) {
             const layer = this.renderables.layers[l];
 
             this.setBuffer(this.backBuffer);
-            this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+            this.gl.clear(this.gl.COLOR_BUFFER_BIT); // clear BACK BUFFER from last usage
 
             for (let i = 0; i < layer.objs.length; i++) {
                 const obj = layer.objs[i];
@@ -627,30 +772,14 @@ export class Game {
     }
 
     public mouseDown(event: MouseEvent): void {
-        switch (event.button) {
-            case 0:
-                console.log("Left mouse button pressed");
-                break;
-            case 1:
-                console.log("Middle mouse button pressed");
-                break;
-            case 2:
-                console.log("Right mouse button pressed");
-                break;
-            default:
-                console.log("Unknown mouse button pressed");
-        }
-        const x = event.clientX - this.canvasRect.left; // TODO FIX SCALE !
-        const y = event.clientY - this.canvasRect.top; // TODO FIX SCALE !
-        this.curx = x;
-        this.cury = y;
-        this.gamecurx = x + this.scrollx;
-        this.gamecury = y + this.scrolly;
+        this.setCursorPos(event);
+        this.gamecurx = this.curx + this.scrollx;
+        this.gamecury = this.cury + this.scrolly;
         if (!this.selecting) {
             if (event.button == 0) {
                 this.selecting = true;
-                this.selx = x;
-                this.sely = y;
+                this.selx = this.curx;
+                this.sely = this.cury;
             }
             if (event.button == 2) {
                 this.gameaction = this.DEFAULTACTION;
@@ -659,27 +788,11 @@ export class Game {
     }
 
     public mouseUp(event: MouseEvent): void {
-        switch (event.button) {
-            case 0:
-                console.log("Left mouse button released");
-                break;
-            case 1:
-                console.log("Middle mouse button released");
-                break;
-            case 2:
-                console.log("Right mouse button released");
-                break;
-            default:
-                console.log("Unknown mouse button released");
-        }
-        const x = event.clientX - this.canvasRect.left; // TODO FIX SCALE !
-        const y = event.clientY - this.canvasRect.top; // TODO FIX SCALE !
-        this.curx = x;
-        this.cury = y;
+        this.setCursorPos(event);
         this.gameselx = this.selx + this.scrollx;
         this.gamesely = this.sely + this.scrolly;
-        this.gamecurx = x + this.scrollx;
-        this.gamecury = y + this.scrolly;
+        this.gamecurx = this.curx + this.scrollx;
+        this.gamecury = this.cury + this.scrolly;
         if (event.button == 0) {
             this.selecting = false;
             this.gameaction = this.RELEASESEL;
@@ -687,26 +800,26 @@ export class Game {
     }
 
     public mouseMove(event: MouseEvent): void {
-        // Use the cached value of rect for calculations
-        const x = event.clientX - this.canvasRect.left; // TODO FIX SCALE !
-        const y = event.clientY - this.canvasRect.top; // TODO FIX SCALE !
-        console.log(`Mouse X: ${x}, Mouse Y: ${y}`);
-        this.curx = x;
-        this.cury = y;
+        this.setCursorPos(event);
         this.scrollnowx = 0;
         this.scrollnowy = 0;
-        if (x > this.xscr_e) {
+        if (this.curx > this.xscr_e) {
             this.scrollnowx = this.SCROLLSPEED;
         }
-        if (y > this.yscr_e) {
+        if (this.cury > this.yscr_e) {
             this.scrollnowy = this.SCROLLSPEED;
         }
-        if (x < this.SCROLLBORDER) {
+        if (this.curx < this.SCROLLBORDER) {
             this.scrollnowx = -this.SCROLLSPEED;
         }
-        if (y < this.SCROLLBORDER) {
+        if (this.cury < this.SCROLLBORDER) {
             this.scrollnowy = -this.SCROLLSPEED;
         }
+    }
+
+    public setCursorPos(event: MouseEvent): void {
+        this.curx = (event.clientX - this.canvasRect.left) * (this.screenx / this.canvasRect.width);
+        this.cury = (event.clientY - this.canvasRect.top) * (this.screeny / this.canvasRect.height);
     }
 
     public test(): void {
