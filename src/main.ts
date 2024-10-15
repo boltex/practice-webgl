@@ -133,11 +133,16 @@ export class Game {
     public fpsInterval = 1000; // Update FPS every 1 second
     public fpsLastTime = 0;
 
-    public accumulator = 0; // What remained in deltaTime after last update 
-    public timeSoFar = 0; // t in ms
+    // TICK AT 8 FPS
+    public tickAccumulator = 0; // What remained in deltaTime after last update 
     public currentTick = 0;
     public timePerTick = 125; // dt in ms (125 is 8 per second)
     public timerTriggerAccum = this.timePerTick * 3; // 3 times the timePerTick
+
+    // ANIMATIONS AT 15 FPS
+    public animAccumulator = 0; // What remained in deltaTime after last update 
+    public currentAnim = 0;
+    public timePerAnim = 67; // dt in ms (66.66 is 15 per second)
 
     private _resizeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -163,6 +168,11 @@ export class Game {
         this.gl.enable(this.gl.BLEND);
 
         document.body.appendChild(this.canvasElement);
+
+        // Prevent right-click context menu
+        this.canvasElement.addEventListener('contextmenu', (event) => {
+            event.preventDefault();
+        });
 
         // Create the start button
         const startButton = document.createElement("button");
@@ -370,6 +380,26 @@ export class Game {
                 options: {}
             }
         );
+
+        // TODO : ANIMATED ACTION CURSOR
+        // if curanim>0: # --------------- animated cursor ... MAY CHANGE 
+        // alientexar[0].enable() 
+        // sq64in1024( curanim+249 , curanimx-scrollx , curanimy-scrolly)
+        // alientexar[0].disable()
+        if (this.curanim > 0) {
+            cursor.push(
+                {
+                    sprite: "alien", // top horizontal
+                    position: { x: this.curanimx - this.scrollx, y: this.curanimy - this.scrolly },
+                    oldPosition: { x: this.curanimx - this.scrollx, y: this.curanimy - this.scrolly },
+                    frame: { x: 9 + this.curanim, y: 15 },
+                    flip: false,
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    options: {}
+                }
+            );
+        }
+
         if (this.selecting) {
             // Draw selection rectangle with lines
             const cx1 = Math.min(this.selx, this.curx);
@@ -462,6 +492,7 @@ export class Game {
                 // TODO --------------------------- BLOOD DEBRIS STAINS
 
                 // TODO  --------------------------- SELECTION WIDGETS
+
 
                 {
                     // --------------------------- ALIEN TEXTURE LAYER
@@ -643,19 +674,24 @@ export class Game {
         const deltaTime = timestamp - this.lastTime;
         this.lastTime = timestamp;
 
-        this.accumulator += deltaTime;
+        this.tickAccumulator += deltaTime;
+        this.animAccumulator += deltaTime;
 
         this.procgame();
 
-        while (this.accumulator >= this.timePerTick) {
+        while (this.animAccumulator >= this.timePerAnim) {
+            this.animateCursor();
+            this.animAccumulator -= this.timePerAnim;
+        }
+
+        while (this.tickAccumulator >= this.timePerTick) {
             this.tick();
-            this.accumulator -= this.timePerTick;
-            this.timeSoFar += this.timePerTick;
+            this.tickAccumulator -= this.timePerTick;
         }
 
         if (!skipRender) {
             this.gatherRenderables();
-            this.render(this.accumulator / this.timePerTick);
+            this.render(this.tickAccumulator / this.timePerTick);
         }
 
         // Calculate FPS
@@ -670,7 +706,7 @@ export class Game {
         // Checks for needed ticks to be computed if game is minimized
         const timestamp = performance.now();
         const deltaTime = timestamp - this.lastTime;
-        if ((this.accumulator + deltaTime) < this.timerTriggerAccum) {
+        if ((this.tickAccumulator + deltaTime) < this.timerTriggerAccum) {
             return;
         }
         // It's been a while, game is minimized: update without rendering.
@@ -679,16 +715,8 @@ export class Game {
 
     tick(): void {
         // Advance game states in pool:
-        // from this.timeSoFar, by a this.timePerTick amount of time.
         // meaning, from currentTick count, to the next one.
 
-        // #########################################
-        // TEST change cursor anim  
-        if (this.curanim) {
-            this.curanim += 1;
-            if (this.curanim > this.curanimtotal)
-                this.curanim = 0
-        }
         // #########################################
 
         let processed = 0;
@@ -705,6 +733,15 @@ export class Game {
 
         // Update currentTick count
         this.currentTick += 1;
+    }
+
+    public animateCursor(): void {
+        // Animate cursor at 15 FPS
+        if (this.curanim) {
+            this.curanim += 1;
+            if (this.curanim > this.curanimtotal)
+                this.curanim = 0
+        }
     }
 
     interpolate(min: Point, max: Point, fract: number): Point {
