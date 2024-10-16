@@ -133,7 +133,7 @@ export class Game {
     public fpsInterval = 1000; // Update FPS every 1 second
     public fpsLastTime = 0;
 
-    // TICK AT 8 FPS
+    // GAME-STATE TICKS AT 8 FPS
     public tickAccumulator = 0; // What remained in deltaTime after last update 
     public currentTick = 0;
     public timePerTick = 125; // dt in ms (125 is 8 per second)
@@ -657,7 +657,10 @@ export class Game {
         }
     }
 
-    public procgame(): void {
+    public procGame(): void {
+
+        // procgame processes a game frame, animating each RFA
+        // Note: This is not a game-states tick, at timePerTick intervals.
 
         if (this.gameaction) {
 
@@ -704,7 +707,7 @@ export class Game {
         this.tickAccumulator += deltaTime;
         this.animAccumulator += deltaTime;
 
-        this.procgame();
+        this.procGame();
 
         while (this.animAccumulator >= this.timePerAnim) {
             this.animateCursor();
@@ -819,15 +822,6 @@ export class Game {
 
         this.gl.flush();
     }
-
-    public drawselection(): void {
-        //
-        // glVertex2i(selx,sely)
-        // glVertex2i(selx,cury)
-        // glVertex2i(curx,cury)
-        // glVertex2i(curx,sely)
-    }
-
     public trydefault(): void {
         // TODO : Replace with real default action
         // TEST CURSOR ANIMATION ON DEFAULT ACTION
@@ -837,7 +831,7 @@ export class Game {
     }
 
     public tryselect(): void {
-        // 
+        // Called from procGame
     }
 
     public mouseDown(event: MouseEvent): void {
