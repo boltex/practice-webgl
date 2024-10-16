@@ -76,8 +76,8 @@ export class Game {
     public scrollx = 0; // Current scroll position 
     public scrolly = 0;
 
-    public SCROLLSPEED = 50;   // speed in pixels for scrolling
-    public SCROLLBORDER = 5;   // pixels from screen to trigger scrolling
+    public SCROLLSPEED = 2; // 50;   // speed in pixels for scrolling
+    public SCROLLBORDER = 25; // 5;   // pixels from screen to trigger scrolling
     public xscr_e = this.screenx - this.SCROLLBORDER; // constants for finding trigger zone
     public yscr_e = this.screeny - this.SCROLLBORDER;
 
@@ -152,6 +152,9 @@ export class Game {
 
     constructor() {
         console.log('Init WebGL2 Game !');
+        console.log('initrangex', this.initrangex);
+        console.log('initrangey', this.initrangey);
+        console.log('tileratio', this.tileratio);
 
         this.canvasElement = document.createElement("canvas");
         this.canvasElement.width = this.screenx;
@@ -289,13 +292,13 @@ export class Game {
         const alien2 = this.entities.spawn();
         alien2.type = 1;
         alien2.hitPoints = 100;
-        alien2.x = 32;
-        alien2.y = 32;
+        alien2.x = 0;
+        alien2.y = 0;
         const alien3 = this.entities.spawn();
         alien3.type = 1;
         alien3.hitPoints = 100;
-        alien3.x = 38;
-        alien3.y = 45;
+        alien3.x = 64;
+        alien3.y = 64;
 
         // Build Map 
         // TEST temp map 9 by 9 tiles 
@@ -465,29 +468,53 @@ export class Game {
             );
         }
 
+        const backgroundTiles: Renderable[] = [];
+
+        const tileoffx = Math.floor(this.scrollx / this.tilesize);
+        const tileoffy = Math.floor(this.scrolly / this.tilesize);
+        let rangex = this.initrangex
+        let rangey = this.initrangey
+        if (this.scrollx % this.tilesize > this.tilesize - (this.screenx % this.tilesize)) {
+            rangex += 1;
+        }
+        if (this.scrolly % this.tilesize > this.tilesize - (this.screeny % this.tilesize)) {
+            rangey += 1;
+        }
+
+        for (let y = 0; y < rangey; y++) {
+            for (let x = 0; x < rangex; x++) {
+                const a = this.gamemap[(tileoffx + x) + ((tileoffy + y) * (this.gamemapw))];
+                // console.log(a);
+                backgroundTiles.push(
+                    {
+                        sprite: "background", // bottom horizontal
+                        position: {
+                            x: x * this.tilesize - (this.scrollx % this.tilesize),
+                            y: y * this.tilesize - (this.scrolly % this.tilesize)
+                        },
+                        oldPosition: {
+                            x: x * this.tilesize - (this.scrollx % this.tilesize),
+                            y: y * this.tilesize - (this.scrolly % this.tilesize)
+                        },
+
+                        frame: { x: a % this.tileratio, y: Math.floor(a / this.tileratio) },
+                        flip: false,
+                        blendmode: Game.BLENDMODE_ALPHA,
+                        options: {}
+                    }
+                );
+
+            }
+        }
+
+
         this.renderables = {
             layers: [
 
-                //  TODO ---------------- BACKGROUND TEXTURE LAYER
-
-                // backtex.enable()  #--------- BACKGROUND TEXTURE LAYER
-                // tileoffx = scrollx//tilesize
-                // tileoffy = scrolly//tilesize
-                // rangex = initrangex
-                // rangey = initrangey
-                // if scrollx%tilesize > tilesize - ( screenx %tilesize ):
-                //     rangex+=1
-                // if scrolly%tilesize > tilesize - ( screeny %tilesize ):
-                //     rangey+=1        
-                // for y in range(rangey):
-                //     for x in range(rangex):
-                //       q128in1024( gamemap[ (tileoffx+x) + ((tileoffy+y)*( gamemapw )) ], x*tilesize  -(scrollx%tilesize),y*tilesize  -(scrolly%tilesize))
-                // backtex.disable()
-
-                // {
-                //     blendmode: Game.BLENDMODE_ALPHA,
-                //     objs: backgroundTiles,
-                // },
+                {
+                    blendmode: Game.BLENDMODE_ALPHA,
+                    objs: backgroundTiles,
+                },
 
                 // TODO --------------------------- BLOOD DEBRIS STAINS
 
@@ -650,7 +677,7 @@ export class Game {
 
         this.gameaction = 0 // -------------- no more game actions to do
 
-        // scroll if not selected    
+        // Scroll if not selected    
         if (!this.selecting) {
             this.scrollx += this.scrollnowx;
             this.scrolly += this.scrollnowy;
@@ -714,6 +741,8 @@ export class Game {
     }
 
     tick(): void {
+
+
         // Advance game states in pool:
         // meaning, from currentTick count, to the next one.
 
@@ -736,12 +765,15 @@ export class Game {
     }
 
     public animateCursor(): void {
-        // Animate cursor at 15 FPS
+        // Animate at 15 FPS
+
+        // Cursor
         if (this.curanim) {
             this.curanim += 1;
             if (this.curanim > this.curanimtotal)
                 this.curanim = 0
         }
+
     }
 
     interpolate(min: Point, max: Point, fract: number): Point {
