@@ -76,8 +76,8 @@ export class Game {
     public scrollx = 0; // Current scroll position 
     public scrolly = 0;
 
-    public SCROLLSPEED = 2; // 50;   // speed in pixels for scrolling
-    public SCROLLBORDER = 25; // 5;   // pixels from screen to trigger scrolling
+    public SCROLLSPEED = 50;   // speed in pixels for scrolling
+    public SCROLLBORDER = 10; // 5;   // pixels from screen to trigger scrolling
     public xscr_e = this.screenx - this.SCROLLBORDER; // constants for finding trigger zone
     public yscr_e = this.screeny - this.SCROLLBORDER;
 
@@ -164,7 +164,7 @@ export class Game {
         this.worldSpaceMatrix = new M3x3();
 
         this.gl = this.canvasElement.getContext('webgl2', {
-            antialias: false,
+            // antialias: false,
             alpha: false,
             depth: false,
         })!;
