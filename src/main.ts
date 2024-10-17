@@ -97,6 +97,9 @@ export class Game {
     public scrollnowx = 0; // Scroll amount to be applied to scroll when processing
     public scrollnowy = 0;
 
+    public htmlClassList: DOMTokenList;
+    public curClass = ""; //"cur-pointer", "cur-target", "cur-select" ...
+
     public curx = 0 // Current mouse position
     public cury = 0
 
@@ -156,6 +159,8 @@ export class Game {
         console.log('initrangey', this.initrangey);
         console.log('tileratio', this.tileratio);
 
+        this.htmlClassList = document.documentElement.classList;
+        this.setCursor("cur-pointer");
         this.canvasElement = document.createElement("canvas");
         this.canvasElement.width = this.screenx;
         this.canvasElement.height = this.screeny;
@@ -164,7 +169,7 @@ export class Game {
         this.worldSpaceMatrix = new M3x3();
 
         this.gl = this.canvasElement.getContext('webgl2', {
-            // antialias: false,
+            antialias: false,
             alpha: false,
             depth: false,
         })!;
@@ -207,7 +212,7 @@ export class Game {
             });
 
             startButton.style.display = 'none';
-            document.body.style.cursor = 'none'; // ! HIDE NATIVE CURSOR !
+            // document.body.style.cursor = 'none'; // ! HIDE NATIVE CURSOR !
             this.started = true;
             // Setup timer in case RAF Skipped when not in foreground or minimized.
             setInterval(() => { this.checkUpdate(); }, 500);
@@ -316,6 +321,15 @@ export class Game {
         }
     }
 
+    setCursor(newClass: string) {
+        if (this.curClass !== newClass) {
+            if (this.curClass) {
+                this.htmlClassList.remove(this.curClass); // Remove from html
+            }
+            this.htmlClassList.add(newClass); // Add to html
+            this.curClass = newClass; // Update the tracked cursor class
+        }
+    }
     changeOrientation(clockwise: boolean) {
         // EXPERIMENTAL METHOD - WILL BE DELETED
         if (clockwise) {
@@ -372,27 +386,12 @@ export class Game {
         }
 
         const cursor: Renderable[] = [];
-        cursor.push(
-            {
-                sprite: "alien",
-                position: { x: this.curx - 32, y: this.cury - 32 },
-                oldPosition: { x: this.curx - 32, y: this.cury - 32 },
-                frame: { x: this.selecting ? 26 : 29, y: 15 },
-                flip: false,
-                blendmode: Game.BLENDMODE_ALPHA,
-                options: {}
-            }
-        );
 
-        // TODO : ANIMATED ACTION CURSOR
-        // if curanim>0: # --------------- animated cursor ... MAY CHANGE 
-        // alientexar[0].enable() 
-        // sq64in1024( curanim+249 , curanimx-scrollx , curanimy-scrolly)
-        // alientexar[0].disable()
+        // FIXME : SAMPLE ANIMATED ACTION CURSOR (WILL SUPPORT MORE)
         if (this.curanim > 0) {
             cursor.push(
                 {
-                    sprite: "alien", // top horizontal
+                    sprite: "alien",
                     position: { x: this.curanimx - this.scrollx, y: this.curanimy - this.scrolly },
                     oldPosition: { x: this.curanimx - this.scrollx, y: this.curanimy - this.scrolly },
                     frame: { x: 9 + this.curanim, y: 15 },
@@ -412,7 +411,7 @@ export class Game {
 
             cursor.push(
                 {
-                    sprite: "white", // top horizontal
+                    sprite: "white", // top horizontal line
                     position: { x: cx1, y: cy1 },
                     oldPosition: { x: cx1, y: cy1 },
                     frame: { x: 0, y: 0 },
@@ -426,7 +425,7 @@ export class Game {
             );
             cursor.push(
                 {
-                    sprite: "white", // bottom horizontal
+                    sprite: "white", // bottom horizontal line
                     position: { x: cx1, y: cy2 },
                     oldPosition: { x: cx1, y: cy2 },
                     frame: { x: 0, y: 0 },
@@ -440,7 +439,7 @@ export class Game {
             );
             cursor.push(
                 {
-                    sprite: "white", // left vertical
+                    sprite: "white", // left vertical line
                     position: { x: cx1, y: cy1 },
                     oldPosition: { x: cx1, y: cy1 },
                     frame: { x: 0, y: 0 },
@@ -454,7 +453,7 @@ export class Game {
             );
             cursor.push(
                 {
-                    sprite: "white", // right vertical
+                    sprite: "white", // right vertical line
                     position: { x: cx2, y: cy1 },
                     oldPosition: { x: cx2, y: cy1 },
                     frame: { x: 0, y: 0 },
@@ -565,9 +564,8 @@ export class Game {
                 // },
 
 
-                // TODO ------- CURSOR & SELECTION SQUARE 
+                // ------- CURSOR & SELECTION SQUARE 
                 {
-                    // --------------------------- ALIEN TEXTURE LAYER
                     blendmode: Game.BLENDMODE_ALPHA,
                     objs: cursor,
                 },
@@ -643,9 +641,11 @@ export class Game {
     checkKeys(): void {
         if (this.keysPressed['ArrowUp'] || this.keysPressed['w']) {
             // playerY -= playerSpeed * deltaTime;
+            this.setCursor("cur-pointer");
         }
         if (this.keysPressed['ArrowDown'] || this.keysPressed['s']) {
             // playerY += playerSpeed * deltaTime;
+            this.setCursor("cur-target");
         }
         if (this.keysPressed['ArrowLeft'] || this.keysPressed['a']) {
             // playerX -= playerSpeed * deltaTime;
@@ -841,6 +841,7 @@ export class Game {
         if (!this.selecting) {
             if (event.button == 0) {
                 this.selecting = true;
+                this.setCursor("cur-target");
                 this.selx = this.curx;
                 this.sely = this.cury;
             }
@@ -858,6 +859,7 @@ export class Game {
         this.gamecury = this.cury + this.scrolly;
         if (event.button == 0) {
             this.selecting = false;
+            this.setCursor("cur-pointer");
             this.gameaction = this.RELEASESEL;
         }
     }

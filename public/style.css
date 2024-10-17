@@ -13,6 +13,18 @@ body {
   /* cursor: none; */
 }
 
+html.cur-pointer {
+  cursor: url("images/cursor-pointer32.png"), auto;
+}
+
+html.cur-target {
+  cursor: url("images/cursor-target32.png") 15 15, auto;
+}
+
+/* html.cur-select {
+  cursor: url('images/cursor3.png'), auto;
+} */
+
 canvas {
   /* border: 1px solid #000; */
   background-color: #111;
