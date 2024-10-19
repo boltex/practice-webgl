@@ -394,7 +394,7 @@ export class Game {
                     sprite: "alien",
                     position: { x: this.curanimx - this.scrollx, y: this.curanimy - this.scrolly },
                     oldPosition: { x: this.curanimx - this.scrollx, y: this.curanimy - this.scrolly },
-                    frame: { x: 9 + this.curanim, y: 15 },
+                    frame: { x: 25 + this.curanim, y: 15 },
                     flip: false,
                     blendmode: Game.BLENDMODE_ALPHA,
                     options: {}
