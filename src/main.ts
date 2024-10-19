@@ -39,6 +39,8 @@ export class Game {
     // 4:3 = 960 x 720 
     // 16:9 = 1280 x 720
 
+    public menu: HTMLElement;
+
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
 
@@ -159,6 +161,8 @@ export class Game {
         console.log('initrangey', this.initrangey);
         console.log('tileratio', this.tileratio);
 
+        this.menu = document.getElementById('game-menu')!;
+
         this.htmlClassList = document.documentElement.classList;
         this.setCursor("cur-pointer");
         this.canvasElement = document.createElement("canvas");
@@ -185,6 +189,7 @@ export class Game {
         // Create the start button
         const startButton = document.createElement("button");
         startButton.textContent = "Start Game";
+        startButton.classList.add("btn-start");
         startButton.style.position = "absolute";
         startButton.style.top = "50%";
         startButton.style.left = "50%";
@@ -192,6 +197,7 @@ export class Game {
         startButton.style.padding = "10px 20px";
         startButton.style.fontSize = "18px";
         document.body.appendChild(startButton);
+
         startButton.addEventListener("click", () => {
             console.log('Starting the game!');
 
@@ -201,6 +207,20 @@ export class Game {
             document.addEventListener('keyup', (e) => {
                 this.keysPressed[e.key] = false;
             });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F10') {
+                    e.preventDefault();  // Prevent default F10 behavior
+                    this.toggleGameMenu();
+                }
+            });
+
+            const resumeButton = document.getElementById('resume-btn');
+
+            resumeButton!.addEventListener('click', () => {
+                this.toggleGameMenu();  // Close the menu and resume the game
+            });
+
             this.canvasElement.addEventListener("mousemove", (event) => {
                 this.mouseMove(event);
             });
@@ -318,6 +338,17 @@ export class Game {
         this.gamemap[21] = 3;
         for (let temp = 0; temp < 9; temp++) { // add last row of 9 ROW
             this.gamemap.push(temp + 56);
+        }
+    }
+
+    public toggleGameMenu(): void {
+
+        if (this.menu.style.display === 'none') {
+            this.menu.style.display = 'flex';  // Show the menu
+            // Pause game logic here (if needed)
+        } else {
+            this.menu.style.display = 'none';  // Hide the menu
+            // Resume game logic here (if needed)
         }
     }
 
