@@ -221,13 +221,13 @@ export class Game {
                 this.toggleGameMenu();  // Close the menu and resume the game
             });
 
-            this.canvasElement.addEventListener("mousemove", (event) => {
+            window.addEventListener("mousemove", (event) => {
                 this.mouseMove(event);
             });
-            this.canvasElement.addEventListener("mousedown", (event) => {
+            window.addEventListener("mousedown", (event) => {
                 this.mouseDown(event);
             });
-            this.canvasElement.addEventListener("mouseup", (event) => {
+            window.addEventListener("mouseup", (event) => {
                 this.mouseUp(event);
             });
 
