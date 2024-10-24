@@ -1,4 +1,3 @@
-export const SPRITE_SIZE = 32;
 export const GAME_HEIGHT = 720;
 
 export const vertexShaderSource = /*glsl*/ `

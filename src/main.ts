@@ -623,9 +623,34 @@ export class Game {
         }
     }
 
+    public fullScreen(): Promise<void> {
+        const canvas = this.canvasElement;
+        if (document.fullscreenElement) {
+            return Promise.resolve();  // already fullscreen
+        }
+        if (canvas.requestFullscreen) {
+            return canvas.requestFullscreen().catch((err) => {
+                alert(
+                    `Error attempting to enable fullscreen mode: ${err.message} (${err.name})`,
+                );
+            });
+            // } else if (canvas.mozRequestFullScreen) { // Firefox
+            //     return canvas.mozRequestFullScreen();
+            // } else if (canvas.webkitRequestFullscreen) { // Chrome, Safari, Opera
+            //     return canvas.webkitRequestFullscreen();
+            // } else if (canvas.msRequestFullscreen) { // IE/Edge
+            //    return  canvas.msRequestFullscreen();
+        } else {
+            return Promise.resolve();  // already fullscreen
+        }
+    }
+
     public calculateResize(w: number, h: number): void {
 
         let newWidth, newHeight;
+
+        // TODO Calculate the new dimensions :
+        // Capping between 4:3 if too narrow, 16:9 if too wide.
 
         // Calculate the dimensions maintaining the aspect ratio
         if (w / h < this.aspectRatio) {
@@ -642,6 +667,7 @@ export class Game {
         this.canvasElement.width = newWidth;
         this.canvasElement.height = newHeight;
         this.canvasRect = this.canvasElement.getBoundingClientRect();
+        console.log('w: ' + newWidth + " h: " + newHeight);
 
         const wRatio = newWidth / (newHeight / Constants.GAME_HEIGHT);
         this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
