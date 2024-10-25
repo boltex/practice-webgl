@@ -203,16 +203,21 @@ export class Game {
 
             document.addEventListener('keydown', (e) => {
                 this.keysPressed[e.key] = true;
-            });
-            document.addEventListener('keyup', (e) => {
-                this.keysPressed[e.key] = false;
-            });
-
-            document.addEventListener('keydown', (e) => {
                 if (e.key === 'F10') {
                     e.preventDefault();  // Prevent default F10 behavior
                     this.toggleGameMenu();
                 }
+                if (e.ctrlKey && (e.key === '+' || e.key === '-' || e.key === '=' || e.key === '_')) {
+                    e.preventDefault();
+                }
+                // 107 Num Key  +
+                // 109 Num Key  -
+                // 173 Min Key  hyphen/underscore key
+                // 61 Plus key  +/= key
+
+            });
+            document.addEventListener('keyup', (e) => {
+                this.keysPressed[e.key] = false;
             });
 
             const resumeButton = document.getElementById('resume-btn');
@@ -230,6 +235,18 @@ export class Game {
             window.addEventListener("mouseup", (event) => {
                 this.mouseUp(event);
             });
+
+            window.addEventListener("wheel DOMMouseScroll", (event: any) => {
+                if (event.ctrlKey) {
+                    event.preventDefault(); // Prevents the default zoom behavior
+                    // Use the event's deltaY property to detect scroll direction
+                    // if (event.deltaY < 0) {
+                    //     console.log("CTRL+Scroll Up"); // You could trigger a specific game action here
+                    // } else if (event.deltaY > 0) {
+                    //     console.log("CTRL+Scroll Down");
+                    // }
+                }
+            }, { passive: false });
 
             startButton.style.display = 'none';
             // document.body.style.cursor = 'none'; // ! HIDE NATIVE CURSOR !
@@ -621,6 +638,10 @@ export class Game {
                 this.calculateResize(w, h); // Debounced
             }, 100);
         }
+    }
+
+    public resetZoom(): void {
+        // Reset the zoom level
     }
 
     public fullScreen(): Promise<void> {
