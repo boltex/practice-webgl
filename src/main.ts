@@ -640,10 +640,18 @@ export class Game {
         }
     }
 
-    public resetZoom(): void {
-        // Reset the zoom level
+    /**
+     * Will reset if no parameters are passed.
+     */ 
+    public setZoom(zoomLevel = 1.0, siteWidth = 'device-width'): void {
+        this._viewport = document.querySelector('meta[name="viewport"]');
+        if (this._viewport) {
+            this._viewport.setAttribute(
+            'content',
+            'width=' + siteWidth + ', initial-scale=' + zoomLevel
+            );
+        }
     }
-
     public fullScreen(): Promise<void> {
         const canvas = this.canvasElement;
         if (document.fullscreenElement) {
