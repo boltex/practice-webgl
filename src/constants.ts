@@ -1,5 +1,3 @@
-export const GAME_HEIGHT = 720;
-
 export const vertexShaderSource = /*glsl*/ `
     attribute vec2 a_position;
     attribute vec2 a_texCoord;

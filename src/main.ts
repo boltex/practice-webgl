@@ -35,20 +35,20 @@ export class Game {
     public started = false;
     public canvasRect: DOMRect;
     public optionsVisible = false;
-    public optionsAspectRatio = 0; // 0 = 4:3, 1 = 16:9
-    public aspectRatio = 4 / 3;
-    // 4:3 = 960 x 720 
-    // 16:9 = 1280 x 720
+    // public optionsAspectRatio = 0; // 0 = 4:3, 1 = 16:9
+    // public aspectRatio = 4 / 3;
+    // // 4:3 = 960 x 720 
+    // // 16:9 = 1280 x 720
 
     public menu: HTMLElement;
 
     public canvasElement: HTMLCanvasElement;
     public gl!: WebGL2RenderingContext;
 
-    public finalBuffer16x9: BackBuffer;
-    public finalBuffer4x3: BackBuffer;
-    public backBuffer16x9: BackBuffer;
-    public backBuffer4x3: BackBuffer;
+    // public finalBuffer16x9: BackBuffer;
+    // public finalBuffer4x3: BackBuffer;
+    // public backBuffer16x9: BackBuffer;
+    // public backBuffer4x3: BackBuffer;
     public finalBuffer: BackBuffer;
     public backBuffer: BackBuffer;
     public sprites: Record<string, Sprite>;
@@ -69,8 +69,8 @@ export class Game {
     public gamemap: number[] = [];
 
     // Screen States
-    public screenx = 960; // or 1280
-    public screeny = 720;
+    public screenx = 1920;
+    public screeny = 1080;
 
     public selecting: boolean = false;
     public selx = 0; // Started selection at specific coords
@@ -157,13 +157,13 @@ export class Game {
     static BLENDMODE_MULTIPLY = 2;
 
     static AVAILABLE_RESOLUTIONS = {
-        "16:9 (1920x1080)" : {
+        "16:9 (1920x1080)": {
             width: 1920, height: 1080
         },
-        "16:10 (1920x1200)" : {
+        "16:10 (1920x1200)": {
             width: 1920, height: 1200
         },
-        "4:3 (1440x1080)" : {
+        "4:3 (1440x1080)": {
             width: 1440, height: 1080
         },
     };
@@ -210,6 +210,37 @@ export class Game {
         startButton.style.padding = "10px 20px";
         startButton.style.fontSize = "18px";
         document.body.appendChild(startButton);
+
+        // Create the dropdown for screen resolution
+        const resolutionSelect = document.createElement("select");
+        resolutionSelect.classList.add("resolution-select");
+        resolutionSelect.style.position = "absolute";
+        resolutionSelect.style.top = "60%";
+        resolutionSelect.style.left = "50%";
+        resolutionSelect.style.transform = "translate(-50%, -50%)";
+        resolutionSelect.style.padding = "8px";
+        resolutionSelect.style.fontSize = "16px";
+
+        // Populate the dropdown with options
+        for (const [label, { width, height }] of Object.entries(Game.AVAILABLE_RESOLUTIONS)) {
+            const option = document.createElement("option");
+            option.value = `${width}x${height}`; // You can customize this value if needed
+            option.textContent = label;
+            resolutionSelect.appendChild(option);
+        }
+        document.body.appendChild(resolutionSelect);
+
+        // Function to get the selected resolution TEST
+        function getSelectedResolution() {
+            const selectedValue = resolutionSelect.value;
+            console.log("Selected Resolution:", selectedValue);
+            return selectedValue;
+        }
+
+        // Example usage
+        resolutionSelect.addEventListener("change", () => {
+            getSelectedResolution(); // Logs the selected resolution whenever it changes
+        });
 
         startButton.addEventListener("click", () => {
             console.log('Starting the game!');
@@ -262,6 +293,7 @@ export class Game {
             }, { passive: false });
 
             startButton.style.display = 'none';
+            resolutionSelect.style.display = 'none';
             // document.body.style.cursor = 'none'; // ! HIDE NATIVE CURSOR !
             this.started = true;
             // Setup timer in case RAF Skipped when not in foreground or minimized.
@@ -269,20 +301,23 @@ export class Game {
             loop(0);
         });
 
-        this.backBuffer16x9 = new BackBuffer(this.gl, { width: 1280, height: 720 });
-        this.backBuffer4x3 = new BackBuffer(this.gl, { width: 960, height: 720 });
-        this.finalBuffer16x9 = new BackBuffer(this.gl, { width: 1280, height: 720 });
-        this.finalBuffer4x3 = new BackBuffer(this.gl, { width: 960, height: 720 });
+        // this.backBuffer16x9 = new BackBuffer(this.gl, { width: 1280, height: 720 });
+        // this.backBuffer4x3 = new BackBuffer(this.gl, { width: 960, height: 720 });
+        // this.finalBuffer16x9 = new BackBuffer(this.gl, { width: 1280, height: 720 });
+        // this.finalBuffer4x3 = new BackBuffer(this.gl, { width: 960, height: 720 });
 
-        if (this.optionsAspectRatio === 0) {
-            // 4:3
-            this.backBuffer = this.backBuffer4x3
-            this.finalBuffer = this.finalBuffer4x3;
-        } else {
-            // 16:9
-            this.backBuffer = this.backBuffer16x9
-            this.finalBuffer = this.finalBuffer16x9
-        }
+        // if (this.optionsAspectRatio === 0) {
+        //     // 4:3
+        //     this.backBuffer = this.backBuffer4x3
+        //     this.finalBuffer = this.finalBuffer4x3;
+        // } else {
+        //     // 16:9
+        //     this.backBuffer = this.backBuffer16x9
+        //     this.finalBuffer = this.finalBuffer16x9
+        // }
+
+        this.backBuffer = new BackBuffer(this.gl, { width: this.screenx, height: this.screeny });
+        this.finalBuffer = new BackBuffer(this.gl, { width: this.screenx, height: this.screeny });
 
         this.sprites = {
             "alien": new Sprite(
@@ -331,6 +366,21 @@ export class Game {
 
         this.initGameStates();
 
+    }
+
+    public setResolutionConstants(width: number, height: number): void {
+        // ! PRE GAME START ONLY !
+        // Set game constants.
+        //
+        console.log('set game resolution', width, height);
+
+            // Screen States
+        this.screenx = width;
+        this.screeny = height;
+        this.initrangex = (this.screenx / this.tilesize) + 1;
+        this.initrangey = (this.screeny / this.tilesize) + 1;
+        this.maxscrollx = 1 + this.maxmapx - this.screenx;
+        this.maxscrolly = 1 + this.maxmapy - this.screeny;
     }
 
     initGameStates(): void {
@@ -657,19 +707,20 @@ export class Game {
 
         let newWidth, newHeight;
 
-        // TODO Calculate the new dimensions :
         // Capping between 4:3 if too narrow, 16:9 if too wide.
+        // // Calculate the dimensions maintaining the aspect ratio
+        // if (w / h < this.aspectRatio) {
+        //     // Width is the limiting factor
+        //     newWidth = w;
+        //     newHeight = newWidth / this.aspectRatio;
+        // } else {
+        //     // Height is the limiting factor
+        //     newHeight = h;
+        //     newWidth = newHeight * this.aspectRatio;
+        // }
 
-        // Calculate the dimensions maintaining the aspect ratio
-        if (w / h < this.aspectRatio) {
-            // Width is the limiting factor
-            newWidth = w;
-            newHeight = newWidth / this.aspectRatio;
-        } else {
-            // Height is the limiting factor
-            newHeight = h;
-            newWidth = newHeight * this.aspectRatio;
-        }
+        newWidth = w;
+        newHeight = h;
 
         // Set canvas dimensions
         this.canvasElement.width = newWidth;
@@ -677,8 +728,8 @@ export class Game {
         this.canvasRect = this.canvasElement.getBoundingClientRect();
         console.log('w: ' + newWidth + " h: " + newHeight);
 
-        const wRatio = newWidth / (newHeight / Constants.GAME_HEIGHT);
-        this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / Constants.GAME_HEIGHT);
+        const wRatio = newWidth / (newHeight / this.screeny);
+        this.worldSpaceMatrix = new M3x3().translation(-1, 1).scale(2 / wRatio, -2 / this.screeny);
     }
 
     setBuffer(buffer?: BackBuffer): void {
