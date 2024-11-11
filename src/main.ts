@@ -1,4 +1,5 @@
 import * as Constants from "./constants";
+import * as utils from "./utils";
 import { Point, M3x3 } from "./maths";
 import { Renderable, RenderableLayers, TEntity, TParameters } from "./type";
 
@@ -154,6 +155,18 @@ export class Game {
     static BLENDMODE_ALPHA = 0;
     static BLENDMODE_ADDITIVE = 1;
     static BLENDMODE_MULTIPLY = 2;
+
+    static AVAILABLE_RESOLUTIONS = {
+        "16:9 (1920x1080)" : {
+            width: 1920, height: 1080
+        },
+        "16:10 (1920x1200)" : {
+            width: 1920, height: 1200
+        },
+        "4:3 (1440x1080)" : {
+            width: 1440, height: 1080
+        },
+    };
 
     constructor() {
         console.log('Init WebGL2 Game !');
@@ -640,40 +653,6 @@ export class Game {
         }
     }
 
-    /**
-     * Will reset if no parameters are passed.
-     */ 
-    public setZoom(zoomLevel = 1.0, siteWidth = 'device-width'): void {
-        this._viewport = document.querySelector('meta[name="viewport"]');
-        if (this._viewport) {
-            this._viewport.setAttribute(
-            'content',
-            'width=' + siteWidth + ', initial-scale=' + zoomLevel
-            );
-        }
-    }
-    public fullScreen(): Promise<void> {
-        const canvas = this.canvasElement;
-        if (document.fullscreenElement) {
-            return Promise.resolve();  // already fullscreen
-        }
-        if (canvas.requestFullscreen) {
-            return canvas.requestFullscreen().catch((err) => {
-                alert(
-                    `Error attempting to enable fullscreen mode: ${err.message} (${err.name})`,
-                );
-            });
-            // } else if (canvas.mozRequestFullScreen) { // Firefox
-            //     return canvas.mozRequestFullScreen();
-            // } else if (canvas.webkitRequestFullscreen) { // Chrome, Safari, Opera
-            //     return canvas.webkitRequestFullscreen();
-            // } else if (canvas.msRequestFullscreen) { // IE/Edge
-            //    return  canvas.msRequestFullscreen();
-        } else {
-            return Promise.resolve();  // already fullscreen
-        }
-    }
-
     public calculateResize(w: number, h: number): void {
 
         let newWidth, newHeight;
@@ -971,10 +950,6 @@ export class Game {
     public setCursorPos(event: MouseEvent): void {
         this.curx = (event.clientX - this.canvasRect.left) * (this.screenx / this.canvasRect.width);
         this.cury = (event.clientY - this.canvasRect.top) * (this.screeny / this.canvasRect.height);
-    }
-
-    public test(): void {
-        console.log('This is a test');
     }
 
 }
